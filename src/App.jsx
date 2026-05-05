@@ -917,10 +917,119 @@ function PanelAdmin() {
     if (!error) cargarDatos();
   };
 
-  // Función puente para conectar tu lógica de generación automática
-  const handleGenerar = (nombreTorneo) => {
-    // Aquí puedes llamar a tu función real de supabase que genera los partidos
-    alert(`Ejecutando generación automática para: ${nombreTorneo}`);
+  // ========================================================
+  // GENERADOR AUTOMÁTICO: TORNEO 24 HORAS
+  // ========================================================
+  const generarTorneo24h = async () => {
+    try {
+      // 1. Crear el torneo
+      const { data: torneo, error: errTorneo } = await supabase
+        .from('torneos')
+        .insert([{ nombre: 'Torneo 24h 2026', deporte: 'futsal', estado: 'Inscripciones cerradas' }])
+        .select();
+      
+      if (errTorneo || !torneo) throw new Error("Error creando torneo: " + errTorneo?.message);
+      const tId = torneo[0].id;
+
+      // 2. Crear los Grupos
+      const { data: grupos, error: errGrupos } = await supabase
+        .from('grupos')
+        .insert([
+          { torneo_id: tId, nombre: 'GRUPO A' },
+          { torneo_id: tId, nombre: 'GRUPO B' },
+          { torneo_id: tId, nombre: 'GRUPO C' }
+        ])
+        .select();
+
+      if (errGrupos) throw new Error("Error creando grupos");
+
+      const gA = grupos.find(g => g.nombre === 'GRUPO A').id;
+      const gB = grupos.find(g => g.nombre === 'GRUPO B').id;
+      const gC = grupos.find(g => g.nombre === 'GRUPO C').id;
+
+      // 3. Crear los 12 Equipos
+      const nombresEquipos = [
+        'WEST JAMON', 'MINAVO DE KIEV', 'CATICARDIAS', 'EL SEQUET', // Grupo A
+        'K.91', 'KAULA Y ELIXIR', 'FZ FITNESS', 'FRAN GONZALEZ (LACADOS)', // Grupo B
+        'GREÑAS FC', 'MOROS VELLS', 'ANIS TENIS FC', 'METETE QUE TE SALGO' // Grupo C
+      ];
+
+      // Usamos upsert por si algún equipo ya existía en la base de datos de otro torneo
+      const { data: equipos, error: errEquipos } = await supabase
+        .from('participantes')
+        .upsert(nombresEquipos.map(nombre => ({ nombre })), { onConflict: 'nombre' })
+        .select();
+
+      if (errEquipos) throw new Error("Error creando equipos");
+
+      const idEq = (nombreBusqueda) => equipos.find(e => e.nombre === nombreBusqueda).id;
+
+      // 4. Asignar equipos a sus grupos
+      await supabase.from('grupo_participantes').insert([
+        { grupo_id: gA, participante_id: idEq('WEST JAMON') }, { grupo_id: gA, participante_id: idEq('MINAVO DE KIEV') },
+        { grupo_id: gA, participante_id: idEq('CATICARDIAS') }, { grupo_id: gA, participante_id: idEq('EL SEQUET') },
+        { grupo_id: gB, participante_id: idEq('K.91') }, { grupo_id: gB, participante_id: idEq('KAULA Y ELIXIR') },
+        { grupo_id: gB, participante_id: idEq('FZ FITNESS') }, { grupo_id: gB, participante_id: idEq('FRAN GONZALEZ (LACADOS)') },
+        { grupo_id: gC, participante_id: idEq('GREÑAS FC') }, { grupo_id: gC, participante_id: idEq('MOROS VELLS') },
+        { grupo_id: gC, participante_id: idEq('ANIS TENIS FC') }, { grupo_id: gC, participante_id: idEq('METETE QUE TE SALGO') }
+      ]);
+
+      // 5. Crear el Calendario de Partidos (Fase Grupos)
+      const partidos = [
+        { torneo_id: tId, fase: 'grupos', jornada: 1, hora: '19:30', ubicacion: 'Pabellón', local_id: idEq('CATICARDIAS'), visitante_id: idEq('MINAVO DE KIEV') },
+        { torneo_id: tId, fase: 'grupos', jornada: 1, hora: '19:30', ubicacion: 'Pista Exterior', local_id: idEq('EL SEQUET'), visitante_id: idEq('WEST JAMON') },
+        { torneo_id: tId, fase: 'grupos', jornada: 1, hora: '20:20', ubicacion: 'Pabellón', local_id: idEq('FZ FITNESS'), visitante_id: idEq('KAULA Y ELIXIR') },
+        { torneo_id: tId, fase: 'grupos', jornada: 1, hora: '20:20', ubicacion: 'Pista Exterior', local_id: idEq('FRAN GONZALEZ (LACADOS)'), visitante_id: idEq('K.91') },
+        { torneo_id: tId, fase: 'grupos', jornada: 1, hora: '21:10', ubicacion: 'Pabellón', local_id: idEq('ANIS TENIS FC'), visitante_id: idEq('MOROS VELLS') },
+        { torneo_id: tId, fase: 'grupos', jornada: 1, hora: '21:10', ubicacion: 'Pista Exterior', local_id: idEq('METETE QUE TE SALGO'), visitante_id: idEq('GREÑAS FC') },
+        { torneo_id: tId, fase: 'grupos', jornada: 2, hora: '22:00', ubicacion: 'Pabellón', local_id: idEq('WEST JAMON'), visitante_id: idEq('CATICARDIAS') },
+        { torneo_id: tId, fase: 'grupos', jornada: 2, hora: '22:00', ubicacion: 'Pista Exterior', local_id: idEq('MINAVO DE KIEV'), visitante_id: idEq('EL SEQUET') },
+        { torneo_id: tId, fase: 'grupos', jornada: 2, hora: '22:50', ubicacion: 'Pabellón', local_id: idEq('K.91'), visitante_id: idEq('FZ FITNESS') },
+        { torneo_id: tId, fase: 'grupos', jornada: 2, hora: '22:50', ubicacion: 'Pista Exterior', local_id: idEq('KAULA Y ELIXIR'), visitante_id: idEq('FRAN GONZALEZ (LACADOS)') },
+        { torneo_id: tId, fase: 'grupos', jornada: 2, hora: '23:40', ubicacion: 'Pabellón', local_id: idEq('MOROS VELLS'), visitante_id: idEq('METETE QUE TE SALGO') },
+        { torneo_id: tId, fase: 'grupos', jornada: 2, hora: '23:40', ubicacion: 'Pista Exterior', local_id: idEq('GREÑAS FC'), visitante_id: idEq('ANIS TENIS FC') },
+        { torneo_id: tId, fase: 'grupos', jornada: 3, hora: '00:30', ubicacion: 'Pabellón', local_id: idEq('MINAVO DE KIEV'), visitante_id: idEq('WEST JAMON') },
+        { torneo_id: tId, fase: 'grupos', jornada: 3, hora: '00:30', ubicacion: 'Pista Exterior', local_id: idEq('EL SEQUET'), visitante_id: idEq('CATICARDIAS') },
+        { torneo_id: tId, fase: 'grupos', jornada: 3, hora: '01:20', ubicacion: 'Pabellón', local_id: idEq('KAULA Y ELIXIR'), visitante_id: idEq('K.91') },
+        { torneo_id: tId, fase: 'grupos', jornada: 3, hora: '01:20', ubicacion: 'Pista Exterior', local_id: idEq('FRAN GONZALEZ (LACADOS)'), visitante_id: idEq('FZ FITNESS') },
+        { torneo_id: tId, fase: 'grupos', jornada: 3, hora: '02:10', ubicacion: 'Pabellón', local_id: idEq('MOROS VELLS'), visitante_id: idEq('GREÑAS FC') },
+        { torneo_id: tId, fase: 'grupos', jornada: 3, hora: '02:10', ubicacion: 'Pista Exterior', local_id: idEq('METETE QUE TE SALGO'), visitante_id: idEq('ANIS TENIS FC') }
+      ];
+
+      const { error: errPartidos } = await supabase.from('partidos').insert(partidos);
+      if (errPartidos) throw new Error("Error creando partidos");
+
+      return true; // Todo salió bien
+    } catch (error) {
+      console.error(error);
+      alert(error.message);
+      return false;
+    }
+  };
+
+  const handleGenerar = async (nombreTorneo) => {
+    if (nombreTorneo === 'Torneo 24h 2026') {
+      const confirmacion = window.confirm(`⚡ ¿Estás seguro de que quieres crear y generar toda la estructura para el ${nombreTorneo}?`);
+      if (!confirmacion) return;
+
+      // Mostramos un mensajito de carga (opcional, pero queda bien)
+      const btn = document.activeElement;
+      const textoOriginal = btn.innerText;
+      btn.innerText = "⏳ Generando...";
+      btn.disabled = true;
+
+      const exito = await generarTorneo24h();
+      
+      btn.innerText = textoOriginal;
+      btn.disabled = false;
+
+      if (exito) {
+        alert('✅ ¡Torneo 24h generado con éxito en la base de datos!');
+        cargarDatos(); // Recarga la lista de partidos pendientes
+      }
+    } else {
+      alert(`🛠️ La generación automática para ${nombreTorneo} la conectaremos en el siguiente paso.`);
+    }
   };
 
   return (
