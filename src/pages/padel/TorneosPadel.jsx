@@ -1,24 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleDot } from 'lucide-react';
+import { CircleDot, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
 import NormativaPadel from './NormativaPadel';
 
 export default function TorneosPadel() {
-  const [torneos, setTorneos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [cat, setCat] = useState('Oro');
-  const [verNormativa, setVerNormativa] = useState(false);
+  const [torneos,     setTorneos]     = useState([]);
+  const [cargando,    setCargando]    = useState(true);
+  const [error,       setError]       = useState('');
+  const [cat,         setCat]         = useState('Oro');
+  const [verNormativa,setVerNormativa]= useState(false);
 
-  useEffect(() => {
-    async function cargar() {
-      setCargando(true);
-      const { data } = await supabase.from('torneos').select('*').eq('deporte', 'padel');
-      if (data) setTorneos(data);
-      setCargando(false);
+  const cargar = async () => {
+    setCargando(true);
+    setError('');
+    const { data, error: err } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('deporte', 'padel')
+      .order('created_at', { ascending: false });
+
+    if (err) {
+      setError('No se pudieron cargar los torneos. Comprueba tu conexión e inténtalo de nuevo.');
+      console.error('[TorneosPadel]', err.message);
+    } else {
+      setTorneos(data || []);
     }
-    cargar();
-  }, []);
+    setCargando(false);
+  };
+
+  useEffect(() => { cargar(); }, []);
 
   const mostrar = torneos.filter((t) =>
     t.nombre.toLowerCase().includes(cat.toLowerCase())
@@ -56,7 +67,7 @@ export default function TorneosPadel() {
             </button>
           </div>
 
-          {/* Normativa desplegable (extraída a componente propio) */}
+          {/* Normativa desplegable */}
           <div className="mb-10 bg-[#0f172a]/80 border border-slate-700 rounded-xl overflow-hidden shadow-lg">
             <button
               onClick={() => setVerNormativa(!verNormativa)}
@@ -70,12 +81,34 @@ export default function TorneosPadel() {
             {verNormativa && <NormativaPadel />}
           </div>
 
-          {/* Lista torneos */}
-          {cargando ? (
-            <p className="text-[#60A5FA] animate-pulse font-bold tracking-widest uppercase text-sm">Cargando...</p>
-          ) : mostrar.length === 0 ? (
+          {/* Estado: cargando */}
+          {cargando && (
+            <p className="text-[#60A5FA] animate-pulse font-bold tracking-widest uppercase text-sm">
+              Cargando...
+            </p>
+          )}
+
+          {/* Estado: error */}
+          {!cargando && error && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <AlertCircle size={40} className="text-red-400" />
+              <p className="text-red-400 font-bold text-sm">{error}</p>
+              <button
+                onClick={cargar}
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+              >
+                <RefreshCw size={15} /> Reintentar
+              </button>
+            </div>
+          )}
+
+          {/* Estado: sin torneos en categoría */}
+          {!cargando && !error && mostrar.length === 0 && (
             <p className="text-slate-400">No hay torneos registrados en esta categoría.</p>
-          ) : (
+          )}
+
+          {/* Lista torneos */}
+          {!cargando && !error && mostrar.length > 0 && (
             <div className="grid gap-5">
               {mostrar.map((torneo) => (
                 <div

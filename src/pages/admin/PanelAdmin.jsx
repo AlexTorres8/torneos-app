@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Target, Wand2, Zap, Trophy, Share2, LogOut } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Target, Wand2, Zap, Trophy, Share2, LogOut, Filter } from 'lucide-react';
 import { supabase } from '../../supabase';
 import ResultadosPendientes  from './ResultadosPendientes';
 import CreadorTorneo         from './CreadorTorneo';
@@ -29,7 +29,6 @@ const COLOR_BTN = {
   orange: 'bg-orange-500/10 hover:bg-orange-500/20 text-orange-500 border-orange-500/30',
 };
 
-// Títulos y subtítulos por pestaña
 const TAB_INFO = {
   resultados: { titulo: 'Resultados Pendientes',   sub: 'Introduce los marcadores de los partidos jugados.' },
   crear:      { titulo: 'Crear Nuevo Torneo',       sub: 'Pega los equipos y genera el calendario automáticamente.' },
@@ -41,29 +40,46 @@ const TAB_INFO = {
 export default function PanelAdmin() {
   const [tab,                setTab]                = useState('resultados');
   const [partidosPendientes, setPartidosPendientes] = useState([]);
+  const [torneos,            setTorneos]            = useState([]);
+  const [filtroTorneo,       setFiltroTorneo]       = useState('');
+
+  // CORRECCIÓN: generandoRef previene doble clic — useState gestiona UI
   const [cargandoGen,        setCargandoGen]        = useState(null);
+  const [generandoLock,      setGenerandoLock]      = useState(false);
+
   const [usuarioEmail,       setUsuarioEmail]       = useState('');
 
-  const cargarDatos = async () => {
-    const { data: p } = await supabase
-      .from('partidos')
-      .select('id, ubicacion, fase, jornada, hora, torneo:torneos(nombre, deporte), local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)')
-      .eq('estado', 'pendiente')
-      .order('torneo_id');
+  const cargarDatos = useCallback(async () => {
+    const [{ data: p }, { data: t }] = await Promise.all([
+      supabase
+        .from('partidos')
+        .select('id, ubicacion, fase, jornada, hora, torneo:torneos(nombre, deporte), local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre), torneo_id')
+        .eq('estado', 'pendiente')
+        .order('torneo_id'),
+      supabase
+        .from('torneos')
+        .select('id, nombre')
+        .order('nombre'),
+    ]);
     setPartidosPendientes(p || []);
-  };
+    setTorneos(t || []);
+  }, []);
 
   useEffect(() => {
     cargarDatos();
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUsuarioEmail(user.email);
     });
-  }, []);
+  }, [cargarDatos]);
 
   const handleLogout = () => supabase.auth.signOut();
 
+  // CORRECCIÓN: guard con lock para evitar doble ejecución del generador
   const handleGenerar = async (nombre) => {
-    if (!window.confirm(`⚡ ¿Crear estructura completa para: ${nombre}?`)) return;
+    if (generandoLock) return; // bloquear si ya hay una ejecución en curso
+    if (!window.confirm(`⚡ ¿Crear estructura completa para: ${nombre}?\n\nEsta acción no se puede deshacer.`)) return;
+
+    setGenerandoLock(true);
     setCargandoGen(nombre);
 
     const resultado =
@@ -72,6 +88,7 @@ export default function PanelAdmin() {
         : { ok: false, error: 'Usa la pestaña "Crear" para este torneo.' };
 
     setCargandoGen(null);
+    setGenerandoLock(false);
 
     if (resultado.ok) {
       alert(`✅ ${nombre} generado con éxito.`);
@@ -80,6 +97,11 @@ export default function PanelAdmin() {
       alert(`❌ ${resultado.error}`);
     }
   };
+
+  // Filtrar partidos pendientes por torneo seleccionado
+  const partidosFiltrados = filtroTorneo
+    ? partidosPendientes.filter((p) => p.torneo_id === filtroTorneo)
+    : partidosPendientes;
 
   const { titulo, sub } = TAB_INFO[tab];
 
@@ -139,7 +161,7 @@ export default function PanelAdmin() {
             {titulo}
             {tab === 'resultados' && (
               <span className="bg-[#60A5FA]/20 text-[#60A5FA] text-xs px-2 py-0.5 rounded-full font-black">
-                {partidosPendientes.length}
+                {partidosFiltrados.length}
               </span>
             )}
           </h2>
@@ -148,7 +170,30 @@ export default function PanelAdmin() {
 
         {/* ── RESULTADOS ── */}
         {tab === 'resultados' && (
-          <ResultadosPendientes partidos={partidosPendientes} onActualizar={cargarDatos} />
+          <>
+            {/* Filtro por torneo */}
+            {torneos.length > 1 && (
+              <div className="flex items-center gap-3 mb-6 bg-[#0f172a]/60 border border-slate-700/50 rounded-xl p-3">
+                <Filter size={14} className="text-slate-500 flex-shrink-0" />
+                <select
+                  value={filtroTorneo}
+                  onChange={(e) => setFiltroTorneo(e.target.value)}
+                  className="flex-1 bg-transparent text-white font-bold text-sm focus:outline-none cursor-pointer"
+                >
+                  <option value="">Todos los torneos ({partidosPendientes.length} partidos)</option>
+                  {torneos.map((t) => {
+                    const count = partidosPendientes.filter((p) => p.torneo_id === t.id).length;
+                    return (
+                      <option key={t.id} value={t.id}>
+                        {t.nombre} ({count} pendientes)
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+            <ResultadosPendientes partidos={partidosFiltrados} onActualizar={cargarDatos} />
+          </>
         )}
 
         {/* ── CREAR TORNEO ── */}
@@ -168,17 +213,26 @@ export default function PanelAdmin() {
 
         {/* ── GENERADORES ── */}
         {tab === 'generadores' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {BOTONES_GENERADORES.map(({ nombre, emoji, color }) => (
-              <button
-                key={nombre}
-                onClick={() => handleGenerar(nombre)}
-                disabled={cargandoGen !== null}
-                className={`${COLOR_BTN[color]} border p-4 rounded-xl font-black uppercase tracking-widest text-xs md:text-sm transition-all flex items-center justify-center gap-3 shadow-lg disabled:opacity-50`}
-              >
-                {cargandoGen === nombre ? '⏳ Generando...' : `${emoji} ${nombre}`}
-              </button>
-            ))}
+          <div className="space-y-6">
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-400 text-sm font-bold flex items-start gap-3">
+              <Zap size={18} className="flex-shrink-0 mt-0.5" />
+              <span>
+                Los generadores crean estructura completa en la base de datos de forma irreversible.
+                Úsalos solo una vez por torneo.
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {BOTONES_GENERADORES.map(({ nombre, emoji, color }) => (
+                <button
+                  key={nombre}
+                  onClick={() => handleGenerar(nombre)}
+                  disabled={generandoLock}
+                  className={`${COLOR_BTN[color]} border p-4 rounded-xl font-black uppercase tracking-widest text-xs md:text-sm transition-all flex items-center justify-center gap-3 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {cargandoGen === nombre ? '⏳ Generando...' : `${emoji} ${nombre}`}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 

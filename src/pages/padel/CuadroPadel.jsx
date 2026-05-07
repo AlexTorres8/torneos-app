@@ -1,17 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { MatchNode } from '../../components/ui/MatchNode';
 import { StandingsTable } from '../../components/ui/StandingsTable';
 import { calcularStats } from '../../hooks/useCalcStats';
 
+// Las fechas de jornadas se gestionan desde la BD (campo hora del partido).
+// Este objeto es solo un fallback de etiqueta para torneos históricos.
 const NOMBRES_JORNADAS = {
-  1: 'J1. LUNES 15/07',
-  2: 'J2. MIÉRCOLES 17/07',
-  3: 'J3. VIERNES 19/07',
-  4: 'J4. LUNES 22/07',
-  5: 'J5. MIÉRCOLES 24/07',
-  6: 'J6. JUEVES 18/07 (ESPECIAL)',
+  1: 'Jornada 1',
+  2: 'Jornada 2',
+  3: 'Jornada 3',
+  4: 'Jornada 4',
+  5: 'Jornada 5',
+  6: 'Jornada 6',
 };
 
 const ESQ_PLAYOFFS  = [
@@ -35,29 +38,36 @@ const ESQ_FINAL = { id: 'f1', hora: 'Por Conf.', ubicacion: 'Pista N/V', local: 
 export default function CuadroPadel() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
-  const [grupos, setGrupos] = useState([]);
+  const [grupos,   setGrupos]   = useState([]);
   const [partidos, setPartidos] = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [error,    setError]    = useState('');
 
-  useEffect(() => {
-    async function cargar() {
-      setCargando(true);
-      const [{ data: g }, { data: p }] = await Promise.all([
-        supabase
-          .from('grupos')
-          .select('id, nombre, grupo_participantes(participantes(id, nombre))')
-          .eq('torneo_id', torneoId),
-        supabase
-          .from('partidos')
-          .select('id, estado, ubicacion, puntuacion_local, puntuacion_visitante, detalle_resultado, fase, jornada, hora, local_id, visitante_id, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)')
-          .eq('torneo_id', torneoId),
-      ]);
-      if (g) setGrupos(g);
-      if (p) setPartidos(p);
-      setCargando(false);
+  const cargar = async () => {
+    setCargando(true);
+    setError('');
+    const [{ data: g, error: e1 }, { data: p, error: e2 }] = await Promise.all([
+      supabase
+        .from('grupos')
+        .select('id, nombre, grupo_participantes(participantes(id, nombre))')
+        .eq('torneo_id', torneoId),
+      supabase
+        .from('partidos')
+        .select('id, estado, ubicacion, puntuacion_local, puntuacion_visitante, detalle_resultado, fase, jornada, hora, local_id, visitante_id, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)')
+        .eq('torneo_id', torneoId),
+    ]);
+
+    if (e1 || e2) {
+      setError('No se pudo cargar el torneo. Comprueba tu conexión e inténtalo de nuevo.');
+      console.error('[CuadroPadel]', e1?.message || e2?.message);
+    } else {
+      setGrupos(g || []);
+      setPartidos(p || []);
     }
-    cargar();
-  }, [torneoId]);
+    setCargando(false);
+  };
+
+  useEffect(() => { cargar(); }, [torneoId]);
 
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
@@ -78,7 +88,23 @@ export default function CuadroPadel() {
   const partidosSemis     = useMemo(() => partidos.filter((p) => p.fase === 'semis').sort((a, b) => a.jornada - b.jornada), [partidos]);
   const partidoFinal      = useMemo(() => partidos.find((p) => p.fase === 'final'), [partidos]);
 
-  if (cargando) return <div className="text-center text-slate-400 mt-20 animate-pulse">Cargando torneo...</div>;
+  if (cargando) return (
+    <div className="text-center text-slate-400 mt-20 animate-pulse">Cargando torneo...</div>
+  );
+
+  if (error) return (
+    <div className="max-w-md mx-auto mt-20 flex flex-col items-center gap-4 text-center px-4">
+      <AlertCircle size={48} className="text-red-400" />
+      <p className="text-red-400 font-bold">{error}</p>
+      <button
+        onClick={cargar}
+        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+      >
+        <RefreshCw size={15} /> Reintentar
+      </button>
+      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-white">← Volver</button>
+    </div>
+  );
 
   return (
     <div className="max-w-7xl mx-auto pb-20 px-4">
@@ -114,7 +140,7 @@ export default function CuadroPadel() {
                   <div className="flex flex-wrap gap-5">
                     {partidos
                       .filter((p) => p.fase === 'grupos' && p.jornada === jornada)
-                      .sort((a, b) => a.hora.localeCompare(b.hora))
+                      .sort((a, b) => (a.hora ?? '').localeCompare(b.hora ?? ''))
                       .map((p) => <MatchNode key={p.id} p={p} variant="padel" />)}
                   </div>
                 </div>

@@ -1,21 +1,32 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Zap } from 'lucide-react';
+import { Target, Zap, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
 
 export default function LigasFutsal() {
-  const [torneos, setTorneos] = useState([]);
+  const [torneos,  setTorneos]  = useState([]);
   const [cargando, setCargando] = useState(true);
+  const [error,    setError]    = useState('');
 
-  useEffect(() => {
-    async function cargar() {
-      setCargando(true);
-      const { data } = await supabase.from('torneos').select('*').eq('deporte', 'futsal');
-      if (data) setTorneos(data);
-      setCargando(false);
+  const cargar = async () => {
+    setCargando(true);
+    setError('');
+    const { data, error: err } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('deporte', 'futsal')
+      .order('created_at', { ascending: false });
+
+    if (err) {
+      setError('No se pudieron cargar las competiciones. Comprueba tu conexión e inténtalo de nuevo.');
+      console.error('[LigasFutsal]', err.message);
+    } else {
+      setTorneos(data || []);
     }
-    cargar();
-  }, []);
+    setCargando(false);
+  };
+
+  useEffect(() => { cargar(); }, []);
 
   return (
     <div
@@ -29,13 +40,34 @@ export default function LigasFutsal() {
             <Target className="text-[#60A5FA]" size={36} /> Competiciones Futsal
           </h2>
 
-          {cargando ? (
+          {/* Estado: cargando */}
+          {cargando && (
             <p className="text-[#60A5FA] animate-pulse font-bold tracking-widest uppercase text-sm">
               Cargando competiciones...
             </p>
-          ) : torneos.length === 0 ? (
+          )}
+
+          {/* Estado: error */}
+          {!cargando && error && (
+            <div className="flex flex-col items-center gap-4 py-8 text-center">
+              <AlertCircle size={40} className="text-red-400" />
+              <p className="text-red-400 font-bold text-sm">{error}</p>
+              <button
+                onClick={cargar}
+                className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+              >
+                <RefreshCw size={15} /> Reintentar
+              </button>
+            </div>
+          )}
+
+          {/* Estado: sin torneos */}
+          {!cargando && !error && torneos.length === 0 && (
             <p className="text-slate-400">No hay torneos registrados.</p>
-          ) : (
+          )}
+
+          {/* Estado: lista */}
+          {!cargando && !error && torneos.length > 0 && (
             <div className="grid gap-5">
               {torneos.map((torneo) => {
                 const es24h = torneo.nombre.toLowerCase().includes('24');
