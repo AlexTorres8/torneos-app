@@ -2,21 +2,22 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
-import { MatchNode } from '../../components/ui/MatchNode';
+import { BracketConLineas } from '../../components/ui/BracketConLineas';
 import { StandingsTable } from '../../components/ui/StandingsTable';
 import { calcularStats } from '../../hooks/useCalcStats';
 
+// Esquemas placeholder para cuando aún no hay partidos de fase final creados
 const ESQ_CUARTOS = [
-  { id: 'c1', hora: '21:00', ubicacion: 'Pista Ext.', local: { nombre: '1º Grupo A' }, visitante: { nombre: '4º Grupo B' } },
-  { id: 'c2', hora: '21:00', ubicacion: 'Pabellón',  local: { nombre: '2º Grupo B' }, visitante: { nombre: '3º Grupo A' } },
-  { id: 'c3', hora: '22:00', ubicacion: 'Pabellón',  local: { nombre: '1º Grupo B' }, visitante: { nombre: '4º Grupo A' } },
-  { id: 'c4', hora: '22:00', ubicacion: 'Pista Ext.', local: { nombre: '2º Grupo A' }, visitante: { nombre: '3º Grupo B' } },
+  { id: 'c1', hora: '21:00', ubicacion: 'Pista Ext.', estado: 'pendiente', local: { nombre: '1º Grupo A' }, visitante: { nombre: '4º Grupo B' } },
+  { id: 'c2', hora: '21:00', ubicacion: 'Pabellón',  estado: 'pendiente', local: { nombre: '2º Grupo B' }, visitante: { nombre: '3º Grupo A' } },
+  { id: 'c3', hora: '22:00', ubicacion: 'Pabellón',  estado: 'pendiente', local: { nombre: '1º Grupo B' }, visitante: { nombre: '4º Grupo A' } },
+  { id: 'c4', hora: '22:00', ubicacion: 'Pista Ext.', estado: 'pendiente', local: { nombre: '2º Grupo A' }, visitante: { nombre: '3º Grupo B' } },
 ];
 const ESQ_SEMIS = [
-  { id: 's1', hora: '21:00', ubicacion: 'Pabellón', local: { nombre: 'Ganador C1' }, visitante: { nombre: 'Ganador C2' } },
-  { id: 's2', hora: '22:00', ubicacion: 'Pabellón', local: { nombre: 'Ganador C3' }, visitante: { nombre: 'Ganador C4' } },
+  { id: 's1', hora: '21:00', ubicacion: 'Pabellón', estado: 'pendiente', local: { nombre: 'Ganador C1' }, visitante: { nombre: 'Ganador C2' } },
+  { id: 's2', hora: '22:00', ubicacion: 'Pabellón', estado: 'pendiente', local: { nombre: 'Ganador C3' }, visitante: { nombre: 'Ganador C4' } },
 ];
-const ESQ_FINAL = { id: 'f1', hora: '21:00', ubicacion: 'Pabellón', local: { nombre: 'Ganador Semi 1' }, visitante: { nombre: 'Ganador Semi 2' } };
+const ESQ_FINAL = [{ id: 'f1', hora: '21:00', ubicacion: 'Pabellón', estado: 'pendiente', local: { nombre: 'Ganador Semi 1' }, visitante: { nombre: 'Ganador Semi 2' } }];
 
 export default function CuadroFutsal() {
   const { torneoId } = useParams();
@@ -65,9 +66,16 @@ export default function CuadroFutsal() {
     [grupos, partidos]
   );
 
-  const partidosCuartos = useMemo(() => partidos.filter((p) => p.fase === 'cuartos').sort((a, b) => a.jornada - b.jornada), [partidos]);
-  const partidosSemis   = useMemo(() => partidos.filter((p) => p.fase === 'semis').sort((a, b) => a.jornada - b.jornada), [partidos]);
-  const partidoFinal    = useMemo(() => partidos.find((p) => p.fase === 'final'), [partidos]);
+  const cuartos = useMemo(() => partidos.filter((p) => p.fase === 'cuartos').sort((a, b) => a.jornada - b.jornada), [partidos]);
+  const semis   = useMemo(() => partidos.filter((p) => p.fase === 'semis').sort((a, b) => a.jornada - b.jornada), [partidos]);
+  const finales = useMemo(() => partidos.filter((p) => p.fase === 'final'), [partidos]);
+
+  // Rondas para BracketConLineas
+  const rondas = [
+    { label: 'Cuartos de Final', partidos: cuartos.length > 0 ? cuartos : ESQ_CUARTOS },
+    { label: 'Semifinales',      partidos: semis.length > 0   ? semis   : ESQ_SEMIS   },
+    { label: 'Gran Final',       partidos: finales.length > 0 ? finales : ESQ_FINAL   },
+  ];
 
   if (cargando) return (
     <div className="text-center text-slate-400 mt-20 animate-pulse">Cargando torneo...</div>
@@ -77,15 +85,10 @@ export default function CuadroFutsal() {
     <div className="max-w-md mx-auto mt-20 flex flex-col items-center gap-4 text-center px-4">
       <AlertCircle size={48} className="text-red-400" />
       <p className="text-red-400 font-bold">{error}</p>
-      <button
-        onClick={cargar}
-        className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
-      >
+      <button onClick={cargar} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all">
         <RefreshCw size={15} /> Reintentar
       </button>
-      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-white">
-        ← Volver
-      </button>
+      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-white">← Volver</button>
     </div>
   );
 
@@ -95,8 +98,8 @@ export default function CuadroFutsal() {
         ← Volver a torneos
       </button>
 
-      <div className="space-y-24">
-        {/* CLASIFICACIÓN */}
+      <div className="space-y-20">
+        {/* Clasificación */}
         <section>
           <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest border-l-4 border-blue-500 pl-4">
             Clasificación
@@ -108,35 +111,12 @@ export default function CuadroFutsal() {
           </div>
         </section>
 
-        {/* FASE FINAL */}
+        {/* Fase final con bracket y líneas conectoras */}
         <section>
           <h2 className="text-xl font-black text-white mb-10 uppercase tracking-widest border-l-4 border-blue-500 pl-4">
             Fase Final
           </h2>
-          <div className="overflow-x-auto pb-8">
-            <div className="min-w-max">
-              <div className="flex gap-12 mb-6">
-                <div className="w-52 text-center"><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Cuartos de Final</span></div>
-                <div className="w-52 text-center"><span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Semifinales</span></div>
-                <div className="w-52 text-center"><span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Gran Final</span></div>
-              </div>
-              <div className="flex gap-12 items-stretch">
-                <div className="w-52 flex flex-col gap-6">
-                  {(partidosCuartos.length > 0 ? partidosCuartos : ESQ_CUARTOS).map((x) => (
-                    <MatchNode key={x.id} p={x} variant="futsal" />
-                  ))}
-                </div>
-                <div className="w-52 flex flex-col justify-between py-14">
-                  {(partidosSemis.length > 0 ? partidosSemis : ESQ_SEMIS).map((x) => (
-                    <MatchNode key={x.id} p={x} variant="futsal" />
-                  ))}
-                </div>
-                <div className="w-52 flex flex-col justify-center">
-                  <MatchNode p={partidoFinal ?? ESQ_FINAL} variant="futsal" />
-                </div>
-              </div>
-            </div>
-          </div>
+          <BracketConLineas rondas={rondas} variant="futsal" />
         </section>
       </div>
     </div>

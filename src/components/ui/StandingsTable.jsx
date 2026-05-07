@@ -1,11 +1,13 @@
 /**
- * Tabla de clasificación reutilizable.
+ * StandingsTable — Tabla de clasificación reutilizable.
  * variant: 'futsal' | 'padel' | 'futsal24h'
  *
- * Recibe `equipos` ya ordenados con su objeto `stats` adjunto.
+ * Para pádel muestra: Pts · PJ · SF · SC · JF · JC · +/- sets
+ * El desempate real (partido directo) se resuelve en el padre;
+ * aquí solo se muestran los datos que permiten al usuario entenderlo.
  */
 export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
-  const accentColor = variant === 'futsal24h' ? 'text-amber-500' : 'text-blue-400';
+  const accentColor  = variant === 'futsal24h' ? 'text-amber-500' : 'text-blue-400';
   const headerBorder = variant === 'futsal24h' ? 'text-amber-500' : 'text-blue-400';
 
   return (
@@ -22,7 +24,6 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
               <th className="px-3 py-2 text-center text-white">Pts</th>
               <th className="px-2 py-2 text-center">PJ</th>
 
-              {/* Columnas específicas por variante */}
               {variant === 'futsal' && (
                 <>
                   <th className="px-2 py-2 text-center text-emerald-500/70">PG</th>
@@ -36,7 +37,9 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
               {variant === 'padel' && (
                 <>
                   <th className="px-2 py-2 text-center text-emerald-500/70" title="Sets a Favor">SF</th>
-                  <th className="px-2 py-2 text-center text-red-500/70" title="Sets en Contra">SC</th>
+                  <th className="px-2 py-2 text-center text-red-500/70"     title="Sets en Contra">SC</th>
+                  <th className="px-2 py-2 text-center text-slate-400"      title="Juegos a Favor">JF</th>
+                  <th className="px-2 py-2 text-center text-slate-400"      title="Juegos en Contra">JC</th>
                 </>
               )}
 
@@ -53,9 +56,8 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
 
           <tbody className="divide-y divide-slate-800/50 text-slate-300">
             {equipos.map((e, index) => {
-              // En 24h clasifican los 2 primeros (resaltado verde)
-              const clasificado =
-                variant === 'futsal24h' ? index < 2 : false;
+              const clasificado = variant === 'futsal24h' ? index < 2 : false;
+              const esLider     = index === 0 && e.stats.pts > 0;
 
               return (
                 <tr
@@ -63,15 +65,11 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
                   className={`hover:bg-white/5 transition-colors ${clasificado ? 'bg-emerald-500/5' : ''}`}
                 >
                   <td className="px-3 py-2 text-center font-bold">
-                    <span className={clasificado ? 'text-emerald-500' : 'text-slate-600'}>
-                      {index + 1}
-                    </span>
+                    <span className={clasificado ? 'text-emerald-500' : 'text-slate-600'}>{index + 1}</span>
                   </td>
                   <td className="px-3 py-2 font-bold text-white max-w-[120px] truncate">
                     <div className="flex items-center gap-2">
-                      {index === 0 && e.stats.pts > 0 && (
-                        <span className="text-yellow-500">👑</span>
-                      )}
+                      {esLider && <span className="text-yellow-500">👑</span>}
                       {e.nombre}
                     </div>
                   </td>
@@ -94,6 +92,13 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
                     <>
                       <td className="px-2 py-2 text-center text-emerald-500/70">{e.stats.gf}</td>
                       <td className="px-2 py-2 text-center text-red-500/70">{e.stats.gc}</td>
+                      {/* Juegos a favor / en contra — desempate de 3er nivel */}
+                      <td className="px-2 py-2 text-center text-slate-400" title="Juegos a favor">
+                        {e.stats.jf ?? '—'}
+                      </td>
+                      <td className="px-2 py-2 text-center text-slate-400" title="Juegos en contra">
+                        {e.stats.jc ?? '—'}
+                      </td>
                     </>
                   )}
 
@@ -106,11 +111,7 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
 
                   <td
                     className={`px-2 py-2 text-center font-bold ${
-                      e.stats.dif > 0
-                        ? 'text-emerald-500'
-                        : e.stats.dif < 0
-                        ? 'text-red-500'
-                        : 'text-slate-500'
+                      e.stats.dif > 0 ? 'text-emerald-500' : e.stats.dif < 0 ? 'text-red-500' : 'text-slate-500'
                     }`}
                   >
                     {e.stats.dif > 0 ? `+${e.stats.dif}` : e.stats.dif}
@@ -121,6 +122,13 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
           </tbody>
         </table>
       </div>
+
+      {/* Leyenda desempate para pádel */}
+      {variant === 'padel' && (
+        <div className="px-4 py-2 border-t border-slate-800/60 text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+          Desempate: 1. Pts · 2. Partido directo · 3. Set avg (SF/SC) · 4. Juego avg (JF/JC)
+        </div>
+      )}
     </div>
   );
 }
