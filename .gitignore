@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Variables de entorno — nunca subir al repo
+.env
+.env.*
+!.env.example
+
+# Archivos de análisis generados
+repomix-output.xml
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { SEO } from '../../components/seo/SEO';
 import { BracketConLineas } from '../../components/ui/BracketConLineas';
 import { StandingsTable } from '../../components/ui/StandingsTable';
 import { MatchNode } from '../../components/ui/MatchNode';
@@ -69,10 +70,17 @@ const NOMBRES_JORNADAS = { 1: 'Jornada 1', 2: 'Jornada 2', 3: 'Jornada 3', 4: 'J
 export default function CuadroPadel() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
-  const [grupos,   setGrupos]   = useState([]);
-  const [partidos, setPartidos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error,    setError]    = useState('');
+  const [grupos,       setGrupos]       = useState([]);
+  const [partidos,     setPartidos]     = useState([]);
+  const [cargando,     setCargando]     = useState(true);
+  const [error,        setError]        = useState('');
+  const [nombreTorneo, setNombreTorneo] = useState('');
+
+  useEffect(() => {
+    if (!torneoId) return;
+    supabase.from('torneos').select('nombre').eq('id', torneoId).single()
+      .then(({ data }) => { if (data) setNombreTorneo(data.nombre); });
+  }, [torneoId]);
 
   const cargar = async () => {
     setCargando(true);
@@ -131,6 +139,13 @@ export default function CuadroPadel() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20 px-4">
+      {nombreTorneo && (
+        <SEO
+          title={nombreTorneo}
+          description={`Sigue el torneo de pádel ${nombreTorneo}. Clasificaciones, calendario y fase final en directo.`}
+          canonical={`/torneo-padel/${torneoId}`}
+        />
+      )}
       <button onClick={() => navigate(-1)} className="mb-8 text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2">
         ← Volver a torneos
       </button>

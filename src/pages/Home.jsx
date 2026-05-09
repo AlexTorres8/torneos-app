@@ -5,10 +5,13 @@ const CLASES = ['PILATES', 'FIT', 'A.B.D', 'CICLO', 'FUNCIONAL / TRX', 'PUMP', '
 
 const HORARIO = [
   { hora: '9:15 H',  L: 'PILATES', M: 'CICLO',   X: 'PUMP',    J: 'PILATES', V: 'CICLO'   },
+  { hora: '10:15 H', L: '',        M: '',         X: '',        J: '',        V: ''         },
+  { hora: '11:15 H', L: '',        M: '',         X: '',        J: '',        V: ''         },
+  { hora: '16:15 H', L: '',        M: '',         X: '',        J: '',        V: ''         },
+  { hora: '17:15 H', L: '',        M: '',         X: '',        J: '',        V: 'PUMP'     },
   { hora: '18:15 H', L: 'PILATES', M: 'PILATES',  X: 'CICLO',   J: 'G.A.P',  V: 'A.B.D'   },
   { hora: '19:15 H', L: 'FIT',     M: 'PUMP',     X: 'FUNC/TRX',J: 'PILATES', V: 'PILATES' },
   { hora: '20:15 H', L: 'CICLO',   M: 'CICLO',    X: 'PILATES', J: 'CICLO',  V: ''         },
-  { hora: '17:15 H', L: '',        M: '',          X: '',        J: '',       V: 'PUMP'     },
 ];
 
 const COLOR_CLASE = {
@@ -158,23 +161,26 @@ export default function Home() {
                   ))}
                 </tr>
                 {/* Filas de clases */}
-                {HORARIO.map(({ hora, L, M, X, J, V }) => (
-                  <tr key={hora}>
-                    <td className="bg-[#6b92c5] text-white p-3 rounded">{hora}</td>
-                    {[L, M, X, J, V].map((clase, i) => (
-                      <td key={i} className={`rounded p-2 ${clase ? COLOR_CLASE[clase] || 'bg-white border border-slate-200' : 'bg-white border border-slate-200'}`}>
-                        {clase}
-                      </td>
-                    ))}
-                  </tr>
+                {HORARIO.map(({ hora, L, M, X, J, V }, idx) => (
+                  <>
+                    <tr key={hora}>
+                      <td className="bg-[#6b92c5] text-white p-3 rounded">{hora}</td>
+                      {[L, M, X, J, V].map((clase, i) => (
+                        <td key={i} className={`rounded p-2 ${clase ? COLOR_CLASE[clase] || 'bg-white border border-slate-200' : 'bg-white border border-slate-200'}`}>
+                          {clase}
+                        </td>
+                      ))}
+                    </tr>
+                    {idx === 2 && (
+                      <tr key="cerrado">
+                        <td className="bg-[#6b92c5] text-white p-2 text-[10px] md:text-xs rounded leading-tight">14:00H-15:30H</td>
+                        {Array(5).fill(null).map((_, i) => (
+                          <td key={i} className="bg-[#e2e8f0] text-slate-500 rounded">CERRADO</td>
+                        ))}
+                      </tr>
+                    )}
+                  </>
                 ))}
-                {/* Cerrado mediodía */}
-                <tr>
-                  <td className="bg-[#6b92c5] text-white p-2 text-[10px] md:text-xs rounded leading-tight">14:00H-15:30H</td>
-                  {Array(5).fill(null).map((_, i) => (
-                    <td key={i} className="bg-[#e2e8f0] text-slate-500 rounded">CERRADO</td>
-                  ))}
-                </tr>
               </tbody>
             </table>
           </div>

@@ -40,7 +40,7 @@ export default function TorneosPadel() {
       className="relative w-full min-h-[calc(100vh-5rem)] flex flex-col items-center bg-cover bg-center bg-no-repeat animate-fade-in"
       style={{ backgroundImage: "url('/fondo-padel.jpg')", backgroundColor: '#0f172a' }}
     >
-      <div className="absolute inset-0 bg-slate-900/80" />
+      <div className="absolute inset-0 bg-slate-900/80 pointer-events-none" />
       <div className="relative z-10 w-full max-w-4xl px-4 py-8 md:py-16">
         <div className="bg-[#1e293b]/90 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 md:p-10 shadow-2xl">
           <h2 className="text-2xl md:text-3xl font-black text-white mb-8 border-b border-slate-700/50 pb-4 uppercase tracking-widest flex items-center gap-3">

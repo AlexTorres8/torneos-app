@@ -1,53 +1,61 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// Layout
-import Header        from './components/layout/Header';
-import Footer        from './components/layout/Footer';
+import ErrorBoundary  from './components/layout/ErrorBoundary';
+import ScrollToTop    from './components/layout/ScrollToTop';
+import Header         from './components/layout/Header';
+import Footer         from './components/layout/Footer';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
-// Páginas públicas
-import Home            from './pages/Home';
-import SobreNosotros   from './pages/SobreNosotros';
-import LigasFutsal     from './pages/futsal/LigasFutsal';
-import CuadroFutsal    from './pages/futsal/CuadroFutsal';
-import CuadroFutsal24H from './pages/futsal/CuadroFutsal24H';
-import TorneosPadel    from './pages/padel/TorneosPadel';
-import CuadroPadel     from './pages/padel/CuadroPadel';
-
-// Panel de administración (protegido)
-import PanelAdmin from './pages/admin/PanelAdmin';
+// Rutas cargadas bajo demanda — reduce el bundle inicial
+const Home            = lazy(() => import('./pages/Home'));
+const SobreNosotros   = lazy(() => import('./pages/SobreNosotros'));
+const LigasFutsal     = lazy(() => import('./pages/futsal/LigasFutsal'));
+const CuadroFutsal    = lazy(() => import('./pages/futsal/CuadroFutsal'));
+const CuadroFutsal24H = lazy(() => import('./pages/futsal/CuadroFutsal24H'));
+const TorneosPadel    = lazy(() => import('./pages/padel/TorneosPadel'));
+const CuadroPadel     = lazy(() => import('./pages/padel/CuadroPadel'));
+const PanelAdmin      = lazy(() => import('./pages/admin/PanelAdmin'));
+const AvisoLegal      = lazy(() => import('./pages/legal/AvisoLegal'));
+const Privacidad      = lazy(() => import('./pages/legal/Privacidad'));
+const Cookies         = lazy(() => import('./pages/legal/Cookies'));
 
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col relative">
-        <Header />
+      <ErrorBoundary>
+        <div className="min-h-screen bg-[#0f172a] text-slate-200 flex flex-col relative">
+          <ScrollToTop />
+          <Header />
 
-        <main className="w-full flex-grow relative">
-          <Routes>
-            {/* ── Rutas públicas ── */}
-            <Route path="/"                        element={<Home />} />
-            <Route path="/nosotros"                element={<SobreNosotros />} />
-            <Route path="/futsal"                  element={<LigasFutsal />} />
-            <Route path="/torneo-futsal/:torneoId" element={<CuadroFutsal />} />
-            <Route path="/torneo-24h/:torneoId"    element={<CuadroFutsal24H />} />
-            <Route path="/padel"                   element={<TorneosPadel />} />
-            <Route path="/torneo-padel/:torneoId"  element={<CuadroPadel />} />
+          <main className="w-full flex-grow relative">
+            <Suspense fallback={<div className="flex-grow" />}>
+              <Routes>
+                <Route path="/"                        element={<Home />} />
+                <Route path="/nosotros"                element={<SobreNosotros />} />
+                <Route path="/futsal"                  element={<LigasFutsal />} />
+                <Route path="/torneo-futsal/:torneoId" element={<CuadroFutsal />} />
+                <Route path="/torneo-24h/:torneoId"    element={<CuadroFutsal24H />} />
+                <Route path="/padel"                   element={<TorneosPadel />} />
+                <Route path="/torneo-padel/:torneoId"  element={<CuadroPadel />} />
+                <Route path="/aviso-legal" element={<AvisoLegal />} />
+                <Route path="/privacidad"  element={<Privacidad />} />
+                <Route path="/cookies"     element={<Cookies />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute>
+                      <PanelAdmin />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </Suspense>
+          </main>
 
-            {/* ── Ruta protegida ── */}
-            <Route
-              path="/admin"
-              element={
-                <ProtectedRoute>
-                  <PanelAdmin />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </main>
-
-        <Footer />
-      </div>
+          <Footer />
+        </div>
+      </ErrorBoundary>
     </Router>
   );
 }

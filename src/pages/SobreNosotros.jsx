@@ -26,7 +26,7 @@ export default function SobreNosotros() {
         className="relative w-full h-[40vh] md:h-[50vh] flex flex-col items-center justify-center bg-cover bg-center"
         style={{ backgroundImage: "url('/fondo-gym.jpg')" }}
       >
-        <div className="absolute inset-0 bg-slate-900/80" />
+        <div className="absolute inset-0 bg-slate-900/80 pointer-events-none" />
         <div className="relative z-10 text-center px-4 mt-10">
           <Dumbbell className="w-12 h-12 md:w-16 md:h-16 text-[#60A5FA] mx-auto mb-6" />
           <h1 className="text-4xl md:text-6xl font-black text-white tracking-widest uppercase mb-4 drop-shadow-lg">

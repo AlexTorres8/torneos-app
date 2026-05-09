@@ -23,7 +23,7 @@ export default function Sidebar({ abierto, onCerrar }) {
       {/* Panel lateral */}
       <div
         className={`fixed top-0 left-0 h-full w-72 bg-[#1e293b]/70 backdrop-blur-md border-r border-white/10 z-40 transform transition-transform duration-300 ease-in-out shadow-2xl pt-32 px-6 ${
-          abierto ? 'translate-x-0' : '-translate-x-full'
+          abierto ? 'translate-x-0 pointer-events-auto' : '-translate-x-full pointer-events-none'
         }`}
       >
         <h3 className="text-slate-500 text-xs font-black uppercase tracking-widest mb-6 border-b border-white/10 pb-2">

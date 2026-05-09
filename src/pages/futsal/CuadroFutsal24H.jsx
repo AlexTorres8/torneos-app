@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Clock, Trophy, Zap, Medal, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { SEO } from '../../components/seo/SEO';
 import { MatchNode } from '../../components/ui/MatchNode';
 import { StandingsTable } from '../../components/ui/StandingsTable';
 import { calcularStats } from '../../hooks/useCalcStats';
@@ -21,10 +22,17 @@ const ESQ_FINAL = { id: 'f1', hora: '09:00', ubicacion: 'Pabellón', local: { no
 export default function CuadroFutsal24H() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
-  const [grupos,   setGrupos]   = useState([]);
-  const [partidos, setPartidos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error,    setError]    = useState('');
+  const [grupos,       setGrupos]       = useState([]);
+  const [partidos,     setPartidos]     = useState([]);
+  const [cargando,     setCargando]     = useState(true);
+  const [error,        setError]        = useState('');
+  const [nombreTorneo, setNombreTorneo] = useState('');
+
+  useEffect(() => {
+    if (!torneoId) return;
+    supabase.from('torneos').select('nombre').eq('id', torneoId).single()
+      .then(({ data }) => { if (data) setNombreTorneo(data.nombre); });
+  }, [torneoId]);
 
   const cargar = async () => {
     setCargando(true);
@@ -110,6 +118,13 @@ export default function CuadroFutsal24H() {
 
   return (
     <div className="max-w-7xl mx-auto pb-20 px-4">
+      {nombreTorneo && (
+        <SEO
+          title={nombreTorneo}
+          description={`Torneo 24 horas ${nombreTorneo}. Clasificaciones en tiempo real, horarios y cuadro de fase final.`}
+          canonical={`/torneo-24h/${torneoId}`}
+        />
+      )}
       <button onClick={() => navigate(-1)} className="mb-8 text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2">
         ← Volver a Ligas
       </button>
