@@ -1,179 +1,143 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { CircleDot, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
-import { BracketConLineas } from '../../components/ui/BracketConLineas';
-import { StandingsTable } from '../../components/ui/StandingsTable';
-import { MatchNode } from '../../components/ui/MatchNode';
-import { calcularStats } from '../../hooks/useCalcStats';
+import { SEO } from '../../components/seo/SEO';
+import { Skeleton } from '../../components/ui/Skeleton';
+import NormativaPadel from './NormativaPadel';
 
-const ESQ_PLAYOFFS = [
-  { id: 'p1', hora: '20:30', ubicacion: 'Pista 1', estado: 'pendiente', local: { nombre: '2º Grupo A' }, visitante: { nombre: '3º Grupo C' } },
-  { id: 'p2', hora: '20:30', ubicacion: 'Pista 2', estado: 'pendiente', local: { nombre: '2º Grupo B' }, visitante: { nombre: '3º Grupo D' } },
-  { id: 'p3', hora: '22:00', ubicacion: 'Pista 1', estado: 'pendiente', local: { nombre: '2º Grupo C' }, visitante: { nombre: '3º Grupo A' } },
-  { id: 'p4', hora: '22:00', ubicacion: 'Pista 2', estado: 'pendiente', local: { nombre: '2º Grupo D' }, visitante: { nombre: '3º Grupo B' } },
-];
-const ESQ_CUARTOS = [
-  { id: 'c1', hora: '20:00', ubicacion: 'Pista 1', estado: 'pendiente', local: { nombre: '1º Grupo A' }, visitante: { nombre: 'G. Playoff 1' } },
-  { id: 'c2', hora: '20:00', ubicacion: 'Pista 2', estado: 'pendiente', local: { nombre: '1º Grupo C' }, visitante: { nombre: 'G. Playoff 2' } },
-  { id: 'c3', hora: '22:00', ubicacion: 'Pista 1', estado: 'pendiente', local: { nombre: '1º Grupo B' }, visitante: { nombre: 'G. Playoff 3' } },
-  { id: 'c4', hora: '22:00', ubicacion: 'Pista 2', estado: 'pendiente', local: { nombre: '1º Grupo D' }, visitante: { nombre: 'G. Playoff 4' } },
-];
-const ESQ_SEMIS = [
-  { id: 's1', hora: '20:30', ubicacion: 'Pista 1', estado: 'pendiente', local: { nombre: 'Ganador C1' }, visitante: { nombre: 'Ganador C2' } },
-  { id: 's2', hora: '22:00', ubicacion: 'Pista 2', estado: 'pendiente', local: { nombre: 'Ganador C3' }, visitante: { nombre: 'Ganador C4' } },
-];
-const ESQ_FINAL = [{ id: 'f1', hora: 'Por conf.', ubicacion: 'Pista 1', estado: 'pendiente', local: { nombre: 'Ganador Semi 1' }, visitante: { nombre: 'Ganador Semi 2' } }];
-
-/**
- * Ordenamiento de clasificación de pádel según normativa oficial:
- * 1. Puntos
- * 2. Partido directo entre empatados (implementado para 2 equipos empatados)
- * 3. Set-average (dif = gf - gc)
- * 4. Juego-average (jdif)
- * 5. GF (sets ganados totales)
- */
-function ordenarPadel(equipos, partidos) {
-  return [...equipos].sort((a, b) => {
-    // 1. Puntos
-    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
-
-    // 2. Partido directo (solo entre dos equipos empatados)
-    const partidoDirecto = partidos.find(
-      (p) =>
-        p.fase === 'grupos' &&
-        p.estado === 'finalizado' &&
-        ((p.local_id === a.id && p.visitante_id === b.id) ||
-          (p.local_id === b.id && p.visitante_id === a.id))
-    );
-    if (partidoDirecto) {
-      const esALocal = partidoDirecto.local_id === a.id;
-      const setsA = esALocal ? partidoDirecto.puntuacion_local    : partidoDirecto.puntuacion_visitante;
-      const setsB = esALocal ? partidoDirecto.puntuacion_visitante : partidoDirecto.puntuacion_local;
-      if (setsA !== setsB) return setsB - setsA; // gana quien ganó el enfrentamiento directo
-    }
-
-    // 3. Set-average
-    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
-
-    // 4. Juego-average
-    if ((b.stats.jdif ?? 0) !== (a.stats.jdif ?? 0)) return (b.stats.jdif ?? 0) - (a.stats.jdif ?? 0);
-
-    // 5. Sets ganados totales
-    return b.stats.gf - a.stats.gf;
-  });
-}
-
-const NOMBRES_JORNADAS = { 1: 'Jornada 1', 2: 'Jornada 2', 3: 'Jornada 3', 4: 'Jornada 4', 5: 'Jornada 5', 6: 'Jornada 6' };
-
-export default function CuadroPadel() {
-  const { torneoId } = useParams();
-  const navigate = useNavigate();
-  const [grupos,   setGrupos]   = useState([]);
-  const [partidos, setPartidos] = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error,    setError]    = useState('');
+export default function TorneosPadel() {
+  const [torneos,      setTorneos]      = useState([]);
+  const [cargando,     setCargando]     = useState(true);
+  const [error,        setError]        = useState('');
+  const [cat,          setCat]          = useState('Oro');
+  const [verNormativa, setVerNormativa] = useState(false);
 
   const cargar = async () => {
     setCargando(true);
     setError('');
-    const [{ data: g, error: e1 }, { data: p, error: e2 }] = await Promise.all([
-      supabase.from('grupos').select('id, nombre, grupo_participantes(participantes(id, nombre))').eq('torneo_id', torneoId),
-      supabase.from('partidos').select('id, estado, ubicacion, puntuacion_local, puntuacion_visitante, detalle_resultado, fase, jornada, hora, local_id, visitante_id, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)').eq('torneo_id', torneoId),
-    ]);
-    if (e1 || e2) { setError('No se pudo cargar el torneo. Comprueba tu conexión e inténtalo de nuevo.'); console.error('[CuadroPadel]', e1?.message || e2?.message); }
-    else { setGrupos(g || []); setPartidos(p || []); }
+    const { data, error: err } = await supabase
+      .from('torneos')
+      .select('*')
+      .eq('deporte', 'padel')
+      .order('created_at', { ascending: false });
+
+    if (err) {
+      setError('No se pudieron cargar los torneos. Comprueba tu conexión e inténtalo de nuevo.');
+      console.error('[TorneosPadel]', err.message);
+    } else {
+      setTorneos(data || []);
+    }
     setCargando(false);
   };
 
-  useEffect(() => { cargar(); }, [torneoId]);
+  useEffect(() => { cargar(); }, []);
 
-  const clasificaciones = useMemo(() =>
-    grupos.map((g) => ({
-      ...g,
-      equipos: ordenarPadel(
-        g.grupo_participantes.map((gp) => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'padel') })),
-        partidos
-      ),
-    })),
-    [grupos, partidos]
-  );
-
-  const jornadasGrupos = useMemo(() =>
-    [...new Set(partidos.filter((p) => p.fase === 'grupos').map((p) => p.jornada))].sort((a, b) => a - b),
-    [partidos]
-  );
-
-  const playoffs = useMemo(() => partidos.filter((p) => p.fase === 'playoffs').sort((a, b) => a.jornada - b.jornada), [partidos]);
-  const cuartos  = useMemo(() => partidos.filter((p) => p.fase === 'cuartos').sort((a, b) => a.jornada - b.jornada), [partidos]);
-  const semis    = useMemo(() => partidos.filter((p) => p.fase === 'semis').sort((a, b) => a.jornada - b.jornada), [partidos]);
-  const finales  = useMemo(() => partidos.filter((p) => p.fase === 'final'), [partidos]);
-
-  const rondas = [
-    { label: 'Ronda Previa',   partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS },
-    { label: 'Cuartos',        partidos: cuartos.length > 0  ? cuartos  : ESQ_CUARTOS  },
-    { label: 'Semifinales',    partidos: semis.length > 0    ? semis    : ESQ_SEMIS    },
-    { label: 'Gran Final',     partidos: finales.length > 0  ? finales  : ESQ_FINAL    },
-  ];
-
-  if (cargando) return <div className="text-center text-slate-400 mt-20 animate-pulse">Cargando torneo...</div>;
-
-  if (error) return (
-    <div className="max-w-md mx-auto mt-20 flex flex-col items-center gap-4 text-center px-4">
-      <AlertCircle size={48} className="text-red-400" />
-      <p className="text-red-400 font-bold">{error}</p>
-      <button onClick={cargar} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all">
-        <RefreshCw size={15} /> Reintentar
-      </button>
-      <button onClick={() => navigate(-1)} className="text-sm text-slate-500 hover:text-white">← Volver</button>
-    </div>
+  const mostrar = torneos.filter((t) =>
+    t.nombre.toLowerCase().includes(cat.toLowerCase())
   );
 
   return (
-    <div className="max-w-7xl mx-auto pb-20 px-4">
-      <button onClick={() => navigate(-1)} className="mb-8 text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2">
-        ← Volver a torneos
-      </button>
+    <>
+      <SEO
+        title="Torneos de Pádel"
+        description="Torneos de Pádel Oro y Plata en Activa Fitness Agost. Clasificaciones, calendario y normativa oficial en tiempo real."
+        canonical="/padel"
+      />
 
-      <div className="space-y-20">
-        {/* Clasificación */}
-        <section>
-          <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest border-l-4 border-blue-500 pl-4">Clasificación</h2>
-          <div className="grid lg:grid-cols-2 gap-8">
-            {clasificaciones.map((g) => (
-              <StandingsTable key={g.id} grupo={g} equipos={g.equipos} variant="padel" />
-            ))}
-          </div>
-        </section>
+      <div
+        className="relative w-full min-h-[calc(100vh-5rem)] flex flex-col items-center bg-cover bg-center bg-no-repeat animate-fade-in"
+        style={{ backgroundImage: "url('/fondo-padel.jpg')", backgroundColor: '#0f172a' }}
+      >
+        <div className="absolute inset-0 bg-slate-900/80" />
+        <div className="relative z-10 w-full max-w-4xl px-4 py-8 md:py-16">
+          <div className="bg-[#1e293b]/90 backdrop-blur-md border border-slate-700/50 rounded-2xl p-6 md:p-10 shadow-2xl">
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-8 border-b border-slate-700/50 pb-4 uppercase tracking-widest flex items-center gap-3">
+              <CircleDot className="text-amber-500" size={36} /> Torneos de Pádel
+            </h2>
 
-        {/* Calendario por jornadas */}
-        {jornadasGrupos.length > 0 && (
-          <section>
-            <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest border-l-4 border-blue-500 pl-4">Calendario de Grupos</h2>
-            <div className="grid gap-8">
-              {jornadasGrupos.map((jornada) => (
-                <div key={jornada} className="bg-[#1e293b]/50 rounded-xl border border-slate-800 p-6 shadow-md">
-                  <h3 className="text-blue-400 font-black uppercase tracking-widest text-sm mb-6 flex items-center gap-2 border-b border-slate-700/50 pb-3">
-                    <span>🕒</span> {NOMBRES_JORNADAS[jornada] || `Jornada ${jornada}`}
-                  </h3>
-                  <div className="flex flex-wrap gap-5">
-                    {partidos
-                      .filter((p) => p.fase === 'grupos' && p.jornada === jornada)
-                      .sort((a, b) => (a.hora ?? '').localeCompare(b.hora ?? ''))
-                      .map((p) => <MatchNode key={p.id} p={p} variant="padel" />)}
-                  </div>
-                </div>
+            {/* Tabs categoría */}
+            <div className="flex bg-slate-800/80 p-1.5 rounded-xl mb-6 border border-slate-700 shadow-inner">
+              {['Oro', 'Plata'].map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCat(c)}
+                  className={`flex-1 py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-lg transition-all ${
+                    cat === c
+                      ? c === 'Oro'
+                        ? 'bg-amber-500 text-black shadow-lg scale-[1.02]'
+                        : 'bg-slate-300 text-black shadow-lg scale-[1.02]'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {c === 'Oro' ? '🏆' : '🥈'} Categoría {c}
+                </button>
               ))}
             </div>
-          </section>
-        )}
 
-        {/* Fase final con bracket y líneas conectoras */}
-        <section>
-          <h2 className="text-xl font-black text-white mb-10 uppercase tracking-widest border-l-4 border-blue-500 pl-4">Fase Final</h2>
-          <BracketConLineas rondas={rondas} variant="padel" />
-        </section>
+            {/* Normativa desplegable */}
+            <div className="mb-8 bg-[#0f172a]/80 border border-slate-700 rounded-xl overflow-hidden shadow-lg">
+              <button
+                onClick={() => setVerNormativa(!verNormativa)}
+                className="w-full flex justify-between items-center p-4 hover:bg-slate-800/80 transition-colors text-slate-300 hover:text-white"
+              >
+                <span className="font-bold uppercase tracking-widest text-sm flex items-center gap-2">
+                  📜 Normativa Oficial del Torneo
+                </span>
+                <span className="text-2xl font-black text-amber-500">{verNormativa ? '−' : '+'}</span>
+              </button>
+              {verNormativa && <NormativaPadel />}
+            </div>
+
+            {/* Skeleton */}
+            {cargando && <Skeleton.TorneosLista items={2} />}
+
+            {/* Error */}
+            {!cargando && error && (
+              <div className="flex flex-col items-center gap-4 py-8 text-center">
+                <AlertCircle size={40} className="text-red-400" />
+                <p className="text-red-400 font-bold text-sm">{error}</p>
+                <button
+                  onClick={cargar}
+                  className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all"
+                >
+                  <RefreshCw size={15} /> Reintentar
+                </button>
+              </div>
+            )}
+
+            {/* Vacío */}
+            {!cargando && !error && mostrar.length === 0 && (
+              <p className="text-slate-400 text-sm font-bold">
+                No hay torneos de Categoría {cat} registrados aún.
+              </p>
+            )}
+
+            {/* Lista */}
+            {!cargando && !error && mostrar.length > 0 && (
+              <div className="grid gap-5">
+                {mostrar.map((torneo) => (
+                  <div
+                    key={torneo.id}
+                    className="bg-[#0f172a]/90 p-5 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-6 hover:border-slate-400 transition-colors shadow-lg"
+                  >
+                    <div className="text-center md:text-left">
+                      <h3 className="text-xl md:text-2xl font-black text-white mb-1">{torneo.nombre}</h3>
+                      <span className="text-xs text-[#60A5FA] uppercase tracking-widest font-black">{torneo.estado}</span>
+                    </div>
+                    <Link
+                      to={`/torneo-padel/${torneo.id}`}
+                      className="bg-[#60A5FA] hover:bg-blue-500 text-black px-8 py-3.5 rounded-xl font-black uppercase tracking-widest transition-all w-full md:w-auto text-center shadow-[0_0_15px_rgba(96,165,250,0.3)]"
+                    >
+                      Ver Competición
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

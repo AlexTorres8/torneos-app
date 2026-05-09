@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Bloquear el panel de administración
+Disallow: /admin
+
+# Sitemap
+Sitemap: https://activafitness.es/sitemap.xml

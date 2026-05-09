@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Layout
-import Header        from './components/layout/Header';
-import Footer        from './components/layout/Footer';
+import Header         from './components/layout/Header';
+import Footer         from './components/layout/Footer';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 // Páginas públicas
@@ -13,8 +13,10 @@ import CuadroFutsal    from './pages/futsal/CuadroFutsal';
 import CuadroFutsal24H from './pages/futsal/CuadroFutsal24H';
 import TorneosPadel    from './pages/padel/TorneosPadel';
 import CuadroPadel     from './pages/padel/CuadroPadel';
+import Legal           from './pages/Legal';
+import NotFound        from './pages/NotFound';
 
-// Panel de administración (protegido)
+// Panel admin (protegido)
 import PanelAdmin from './pages/admin/PanelAdmin';
 
 export default function App() {
@@ -34,7 +36,11 @@ export default function App() {
             <Route path="/padel"                   element={<TorneosPadel />} />
             <Route path="/torneo-padel/:torneoId"  element={<CuadroPadel />} />
 
-            {/* ── Ruta protegida ── */}
+            {/* ── Legal ── */}
+            <Route path="/legal"          element={<Legal />} />
+            <Route path="/legal/:seccion" element={<Legal />} />
+
+            {/* ── Admin (protegido) ── */}
             <Route
               path="/admin"
               element={
@@ -43,6 +49,9 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* ── 404 — captura cualquier ruta no definida ── */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
 
