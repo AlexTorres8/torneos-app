@@ -7,7 +7,6 @@ import Header         from './components/layout/Header';
 import Footer         from './components/layout/Footer';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
-// Rutas cargadas bajo demanda — reduce el bundle inicial
 const Home            = lazy(() => import('./pages/Home'));
 const SobreNosotros   = lazy(() => import('./pages/SobreNosotros'));
 const LigasFutsal     = lazy(() => import('./pages/futsal/LigasFutsal'));
@@ -16,9 +15,8 @@ const CuadroFutsal24H = lazy(() => import('./pages/futsal/CuadroFutsal24H'));
 const TorneosPadel    = lazy(() => import('./pages/padel/TorneosPadel'));
 const CuadroPadel     = lazy(() => import('./pages/padel/CuadroPadel'));
 const PanelAdmin      = lazy(() => import('./pages/admin/PanelAdmin'));
-const AvisoLegal      = lazy(() => import('./pages/legal/AvisoLegal'));
-const Privacidad      = lazy(() => import('./pages/legal/Privacidad'));
-const Cookies         = lazy(() => import('./pages/legal/Cookies'));
+const Legal           = lazy(() => import('./pages/Legal'));
+const NotFound        = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
   return (
@@ -38,9 +36,8 @@ export default function App() {
                 <Route path="/torneo-24h/:torneoId"    element={<CuadroFutsal24H />} />
                 <Route path="/padel"                   element={<TorneosPadel />} />
                 <Route path="/torneo-padel/:torneoId"  element={<CuadroPadel />} />
-                <Route path="/aviso-legal" element={<AvisoLegal />} />
-                <Route path="/privacidad"  element={<Privacidad />} />
-                <Route path="/cookies"     element={<Cookies />} />
+                <Route path="/legal"                   element={<Legal />} />
+                <Route path="/legal/:seccion"          element={<Legal />} />
                 <Route
                   path="/admin"
                   element={
@@ -49,6 +46,7 @@ export default function App() {
                     </ProtectedRoute>
                   }
                 />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </main>
