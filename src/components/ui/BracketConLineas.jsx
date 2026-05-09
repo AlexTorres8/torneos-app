@@ -15,7 +15,7 @@ import { useRef, useMemo } from 'react';
 import { MatchNode } from './MatchNode';
 
 // Altura de la tarjeta de partido según variante
-const CARD_H = { futsal: 72, futsal24h: 80, padel: 80 };
+const CARD_H = { futsal: 72, futsal24h: 120, padel: 80 };
 const CARD_W = { futsal: 208, futsal24h: 260, padel: 256 };
 const GAP_Y  = 24; // gap vertical entre tarjetas de la misma ronda
 const GAP_X  = 48; // gap horizontal entre columnas
