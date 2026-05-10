@@ -1,6 +1,39 @@
 import { supabase } from '../supabase';
 import { calcularStats } from '../hooks/useCalcStats';
 
+// Ordenación de pádel idéntica a la del cuadro público:
+// 1. Puntos  2. Partido directo  3. Set-avg  4. Juego-avg  5. GF
+function ordenarGrupoPadel(equipos, partidos) {
+  return [...equipos].sort((a, b) => {
+    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
+
+    const pd = partidos.find(p =>
+      p.fase === 'grupos' && p.estado === 'finalizado' &&
+      ((p.local_id === a.id && p.visitante_id === b.id) ||
+       (p.local_id === b.id && p.visitante_id === a.id))
+    );
+    if (pd) {
+      const esALocal = pd.local_id === a.id;
+      const sA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
+      const sB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
+      if (sA !== sB) return sB - sA;
+    }
+
+    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
+    if ((b.stats.jdif ?? 0) !== (a.stats.jdif ?? 0)) return (b.stats.jdif ?? 0) - (a.stats.jdif ?? 0);
+    return b.stats.gf - a.stats.gf;
+  });
+}
+
+// Ordenación genérica para futsal
+function ordenarGrupoFutsal(equipos) {
+  return [...equipos].sort((a, b) =>
+    b.stats.pts - a.stats.pts ||
+    b.stats.dif - a.stats.dif ||
+    b.stats.gf  - a.stats.gf
+  );
+}
+
 /**
  * Calcula qué partidos de fase final deben crearse en función de las
  * clasificaciones actuales de grupos.
@@ -25,42 +58,50 @@ export async function calcularFaseAuto(torneoId, deporte) {
     .eq('torneo_id', torneoId);
   if (e2) throw new Error('Error cargando partidos: ' + e2.message);
 
-  const grupales = partidos?.filter(p => p.fase === 'grupos') ?? [];
+  const grupales   = partidos?.filter(p => p.fase === 'grupos') ?? [];
   const finalizados = grupales.filter(p => p.estado === 'finalizado');
 
   if (!finalizados.length) {
     throw new Error('No hay partidos de grupos finalizados todavía.');
   }
 
-  // ── 3. Clasificar cada grupo ──────────────────────────────────────────────
+  // ── 3. Clasificar cada grupo con la misma lógica que el cuadro público ────
   const clasificaciones = grupos
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
-    .map(g => ({
-      nombre: g.nombre,
-      equipos: g.grupo_participantes
-        .map(gp => ({
-          ...gp.participantes,
-          stats: calcularStats(partidos, gp.participantes.id, deporte),
-        }))
-        .sort((a, b) =>
-          b.stats.pts - a.stats.pts ||
-          b.stats.dif - a.stats.dif ||
-          (b.stats.jdif ?? 0) - (a.stats.jdif ?? 0) ||
-          b.stats.gf  - a.stats.gf
-        ),
-    }));
+    .map(g => {
+      const conStats = g.grupo_participantes.map(gp => ({
+        ...gp.participantes,
+        stats: calcularStats(partidos, gp.participantes.id, deporte),
+      }));
+      return {
+        nombre: g.nombre,
+        equipos: deporte === 'padel'
+          ? ordenarGrupoPadel(conStats, partidos)
+          : ordenarGrupoFutsal(conStats),
+      };
+    });
 
   const nGrupos = clasificaciones.length;
 
   // ── 4. Construir emparejamientos según estructura ─────────────────────────
   let fase, pares;
 
-  if (nGrupos === 2) {
+  if (nGrupos === 2 && deporte === 'padel') {
+    // Pádel 2 grupos: playoffs cruzados (2ºA-3ºB / 2ºB-3ºA)
+    // Los 1º de grupo esperan en cuartos
+    const [ga, gb] = clasificaciones;
+    fase  = 'playoffs';
+    pares = [
+      { etiq: `2º ${ga.nombre} vs 3º ${gb.nombre}`, local: ga.equipos[1], visitante: gb.equipos[2] },
+      { etiq: `2º ${gb.nombre} vs 3º ${ga.nombre}`, local: gb.equipos[1], visitante: ga.equipos[2] },
+    ];
+
+  } else if (nGrupos === 2) {
     const [ga, gb] = clasificaciones;
     const tamGrupo  = Math.max(ga.equipos.length, gb.equipos.length);
 
     if (tamGrupo >= 4) {
-      // 8+ equipos: cuartos cruzados 1ºA-4ºB / 2ºB-3ºA / 1ºB-4ºA / 2ºA-3ºB
+      // Futsal 8+ equipos: cuartos cruzados 1ºA-4ºB / 2ºB-3ºA / 1ºB-4ºA / 2ºA-3ºB
       fase  = 'cuartos';
       pares = [
         { etiq: `1º ${ga.nombre} vs 4º ${gb.nombre}`, local: ga.equipos[0], visitante: gb.equipos[3] },
@@ -69,7 +110,7 @@ export async function calcularFaseAuto(torneoId, deporte) {
         { etiq: `2º ${ga.nombre} vs 3º ${gb.nombre}`, local: ga.equipos[1], visitante: gb.equipos[2] },
       ];
     } else {
-      // 6 equipos: semifinales directas 1ºA-2ºB / 1ºB-2ºA
+      // Futsal 6 equipos: semifinales directas 1ºA-2ºB / 1ºB-2ºA
       fase  = 'semis';
       pares = [
         { etiq: `1º ${ga.nombre} vs 2º ${gb.nombre}`, local: ga.equipos[0], visitante: gb.equipos[1] },

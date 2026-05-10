@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trophy, Plus, CheckCircle2, AlertCircle, ChevronDown, Zap, ArrowRight, Loader2 } from 'lucide-react';
+import { Trophy, Plus, CheckCircle2, AlertCircle, ChevronDown, Zap, ArrowRight, Loader2, Trash2 } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { HoraUbicacionPicker } from '../../components/ui/HoraUbicacionPicker';
 import { calcularFaseAuto, confirmarFaseAuto } from '../../lib/generarFaseAuto';
@@ -26,6 +26,12 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
   const [estado,        setEstado]        = useState('idle');
   const [errorMsg,      setErrorMsg]      = useState('');
   const [creados,       setCreados]       = useState([]);
+
+  // ── Estado eliminar fase ──────────────────────────────────────────────────
+  const [delFase,     setDelFase]     = useState('cuartos');
+  const [delEstado,   setDelEstado]   = useState('idle'); // idle | loading | preview | eliminando | ok | error
+  const [delPartidos, setDelPartidos] = useState([]);
+  const [delError,    setDelError]    = useState('');
 
   // ── Estado generador automático ───────────────────────────────────────────
   const [autoFase,    setAutoFase]    = useState('idle'); // idle | loading | preview | confirmando | ok | error
@@ -105,6 +111,54 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
     } catch (err) {
       setAutoError(err.message);
       setAutoFase('error');
+    }
+  };
+
+  // ── Eliminar fase ─────────────────────────────────────────────────────────
+  const handleDelBuscar = async () => {
+    if (!torneoId) return;
+    setDelEstado('loading');
+    setDelError('');
+    setDelPartidos([]);
+
+    let q = supabase
+      .from('partidos')
+      .select('id, jornada, hora, ubicacion, estado, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)')
+      .eq('torneo_id', torneoId)
+      .eq('fase', delFase)
+      .order('jornada');
+
+    const { data, error } = await q;
+
+    if (error) {
+      setDelError(error.message);
+      setDelEstado('error');
+    } else if (!data?.length) {
+      setDelError(`No hay partidos de "${FASE_LABEL[delFase]}" en este torneo.`);
+      setDelEstado('error');
+    } else {
+      setDelPartidos(data);
+      setDelEstado('preview');
+    }
+  };
+
+  const handleDelEliminar = async () => {
+    if (!delPartidos.length) return;
+    setDelEstado('eliminando');
+
+    const ids = delPartidos.map((p) => p.id);
+    const { error } = await supabase.from('partidos').delete().in('id', ids);
+
+    if (error) {
+      setDelError(error.message);
+      setDelEstado('error');
+    } else {
+      setDelEstado('ok');
+      onPartidoCreado?.();
+      setTimeout(() => {
+        setDelEstado('idle');
+        setDelPartidos([]);
+      }, 2500);
     }
   };
 
@@ -358,6 +412,145 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
           </div>
         </div>
       )}
+
+      {/* ── DIVISOR ────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-px bg-slate-700/60" />
+        <span className="text-slate-600 text-xs font-black uppercase tracking-widest">eliminar fase</span>
+        <div className="flex-1 h-px bg-slate-700/60" />
+      </div>
+
+      {/* ── ELIMINAR FASE ELIMINATORIA ──────────────────────────────────────── */}
+      <div className="bg-[#0f172a] border border-red-500/20 rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-red-500/20">
+          <Trash2 size={16} className="text-red-400" />
+          <div>
+            <p className="text-white font-black text-sm uppercase tracking-widest">Eliminar fase eliminatoria</p>
+            <p className="text-slate-500 text-xs font-medium mt-0.5">
+              Borra todos los partidos de una fase concreta para regenerarla.
+            </p>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {!torneoId && (
+            <p className="text-slate-600 text-xs font-bold uppercase tracking-widest">
+              Selecciona un torneo arriba para activar esta opción.
+            </p>
+          )}
+
+          {torneoId && (
+            <>
+              {/* Selector de fase */}
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Fase a eliminar</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {FASES.map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => { setDelFase(f); setDelEstado('idle'); setDelPartidos([]); setDelError(''); }}
+                      disabled={delEstado === 'eliminando'}
+                      className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all disabled:opacity-50 ${
+                        delFase === f
+                          ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                          : 'bg-[#1e293b] text-slate-500 border-slate-700 hover:border-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {FASE_LABEL[f]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Botón buscar */}
+              {delEstado === 'idle' && (
+                <button
+                  onClick={handleDelBuscar}
+                  className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 hover:border-slate-500 text-slate-300 hover:text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs transition-all"
+                >
+                  <Trash2 size={13} /> Buscar partidos de {FASE_LABEL[delFase]}
+                </button>
+              )}
+
+              {delEstado === 'loading' && (
+                <div className="flex items-center justify-center gap-2 py-3 text-slate-400">
+                  <Loader2 size={15} className="animate-spin" />
+                  <span className="text-xs font-black uppercase tracking-widest">Buscando...</span>
+                </div>
+              )}
+
+              {/* Preview + confirmación */}
+              {(delEstado === 'preview' || delEstado === 'eliminando') && delPartidos.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-xs text-slate-400 font-bold">
+                    Se eliminarán <span className="text-red-400">{delPartidos.length} partido(s)</span> de {FASE_LABEL[delFase]}:
+                  </p>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {delPartidos.map((p) => (
+                      <div key={p.id} className="flex items-center justify-between bg-slate-800/50 border border-slate-700/50 rounded-lg px-3 py-2">
+                        <p className="text-white font-bold text-xs truncate flex-1">
+                          {p.local?.nombre} <span className="text-slate-500">vs</span> {p.visitante?.nombre}
+                        </p>
+                        <span className={`text-[10px] font-black ml-3 flex-shrink-0 ${p.estado === 'finalizado' ? 'text-amber-400' : 'text-slate-500'}`}>
+                          {p.estado === 'finalizado' ? '⚠ Con resultado' : 'Pendiente'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {delPartidos.some((p) => p.estado === 'finalizado') && (
+                    <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2.5 text-amber-400 text-xs font-bold">
+                      <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+                      Algunos partidos ya tienen resultado guardado. Se perderán los datos.
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { setDelEstado('idle'); setDelPartidos([]); }}
+                      disabled={delEstado === 'eliminando'}
+                      className="flex-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-400 hover:text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs transition-all disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleDelEliminar}
+                      disabled={delEstado === 'eliminando'}
+                      className="flex-1 flex items-center justify-center gap-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black uppercase tracking-widest py-3 rounded-xl text-xs transition-all"
+                    >
+                      {delEstado === 'eliminando'
+                        ? <><Loader2 size={13} className="animate-spin" /> Eliminando...</>
+                        : <><Trash2 size={13} /> Eliminar {delPartidos.length} partido(s)</>}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {delEstado === 'ok' && (
+                <div className="flex items-center gap-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 text-emerald-400 text-sm font-bold">
+                  <CheckCircle2 size={16} /> Fase eliminada correctamente.
+                </div>
+              )}
+
+              {delEstado === 'error' && delError && (
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2 bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-red-400 text-xs font-bold">
+                    <AlertCircle size={14} className="flex-shrink-0 mt-0.5" /> {delError}
+                  </div>
+                  <button
+                    onClick={() => { setDelEstado('idle'); setDelError(''); }}
+                    className="text-xs text-slate-500 hover:text-white font-bold uppercase tracking-widest transition-colors"
+                  >
+                    ← Volver
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
     </div>
   );
 }
