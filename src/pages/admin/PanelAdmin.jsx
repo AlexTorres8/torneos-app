@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Target, Wand2, Zap, Trophy, Share2, LogOut, Filter, Trash2, CheckCircle } from 'lucide-react';
+import { Target, Wand2, Zap, Trophy, Share2, LogOut, Filter, Trash2, CheckCircle, Pencil } from 'lucide-react';
 import { supabase } from '../../supabase';
 import ResultadosPendientes  from './ResultadosPendientes';
 import PartidosFinalizados   from './PartidosFinalizados';
@@ -7,6 +7,7 @@ import CreadorTorneo         from './CreadorTorneo';
 import GestorFaseFinal       from './GestorFaseFinal';
 import ExportarClasificacion from './ExportarClasificacion';
 import EliminarTorneo        from './EliminarTorneo';
+import EditarEstadoTorneo    from './EditarEstadoTorneo';
 import { generarTorneo24h }  from '../../lib/generadores/generador24h';
 
 const TABS = [
@@ -15,6 +16,7 @@ const TABS = [
   { id: 'fases',      label: 'Fases',      Icon: Trophy  },
   { id: 'exportar',   label: 'Exportar',   Icon: Share2  },
   { id: 'generadores',label: 'Auto',       Icon: Zap     },
+  { id: 'editar',     label: 'Editar',     Icon: Pencil  },
   { id: 'eliminar',   label: 'Eliminar',   Icon: Trash2  },
 ];
 
@@ -38,6 +40,7 @@ const TAB_INFO = {
   fases:       { titulo: 'Gestión Fases Finales',  sub: 'Crea los cruces de cuartos, semifinales y final manualmente.' },
   exportar:    { titulo: 'Exportar Clasificación', sub: 'Genera el texto de clasificación listo para WhatsApp.' },
   generadores: { titulo: 'Generadores Automáticos',sub: 'Torneos predefinidos: se crean con un solo clic.' },
+  editar:      { titulo: 'Editar Estado',           sub: 'Cambia el texto de estado que aparece bajo el nombre del torneo.' },
   eliminar:    { titulo: 'Eliminar Torneo',        sub: 'Borra un torneo completo y todos sus datos asociados.' },
 };
 
@@ -156,6 +159,7 @@ export default function PanelAdmin() {
             {tab === 'fases'       && <Trophy  className="text-[#60A5FA]" size={22} />}
             {tab === 'exportar'    && <Share2  className="text-[#60A5FA]" size={22} />}
             {tab === 'generadores' && <Zap     className="text-[#60A5FA]" size={22} />}
+            {tab === 'editar'      && <Pencil  className="text-[#60A5FA]" size={22} />}
             {tab === 'eliminar'    && <Trash2  className="text-red-400"   size={22} />}
             {titulo}
             {tab === 'resultados' && subTabResultados === 'pendientes' && (
@@ -251,6 +255,9 @@ export default function PanelAdmin() {
             </div>
           </div>
         )}
+
+        {/* ── EDITAR ESTADO ── */}
+        {tab === 'editar' && <EditarEstadoTorneo />}
 
         {/* ── ELIMINAR ── */}
         {tab === 'eliminar' && <EliminarTorneo />}

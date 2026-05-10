@@ -9,7 +9,7 @@ const CARDS = [
   {
     Icon: Dumbbell,
     title: 'Instalaciones',
-    desc: 'Contamos con zona de musculación, salas para clases dirigidas, pistas de pádel exteriores y un pabellón preparado.',
+    desc: 'Contamos con zona de musculación y salas para clases dirigidas.',
   },
   {
     Icon: CircleDot,

@@ -3,6 +3,7 @@ import { Trophy, Plus, CheckCircle2, AlertCircle, ChevronDown, Zap, ArrowRight, 
 import { supabase } from '../../supabase';
 import { HoraUbicacionPicker } from '../../components/ui/HoraUbicacionPicker';
 import { calcularFaseAuto, confirmarFaseAuto } from '../../lib/generarFaseAuto';
+import EditarFaseFinal from './EditarFaseFinal';
 
 const FASES = ['cuartos', 'semis', 'final', 'playoffs'];
 
@@ -548,6 +549,34 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
               )}
             </>
           )}
+        </div>
+      </div>
+
+      {/* ── DIVISOR ──────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-4">
+        <div className="flex-1 h-px bg-slate-700/60" />
+        <span className="text-slate-600 text-xs font-black uppercase tracking-widest">editar fases existentes</span>
+        <div className="flex-1 h-px bg-slate-700/60" />
+      </div>
+
+      {/* ── EDITAR FASES ─────────────────────────────────────────────────── */}
+      <div className="bg-[#0f172a] border border-slate-700 rounded-2xl overflow-hidden">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-700/60">
+          <Trophy size={16} className="text-[#60A5FA]" />
+          <div>
+            <p className="text-white font-black text-sm uppercase tracking-widest">Editar fases del torneo</p>
+            <p className="text-slate-500 text-xs font-medium mt-0.5">
+              Modifica equipos, horario y pista de cualquier partido eliminatorio.
+            </p>
+          </div>
+        </div>
+        <div className="p-5">
+          <EditarFaseFinal
+            torneoId={torneoId}
+            torneoDeporte={torneoDeporte}
+            participantes={participantes}
+            onActualizar={onPartidoCreado}
+          />
         </div>
       </div>
 

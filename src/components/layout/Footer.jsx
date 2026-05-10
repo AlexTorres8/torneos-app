@@ -38,9 +38,6 @@ export default function Footer() {
                 className="absolute inset-0 z-10 flex items-end justify-end p-2"
                 aria-label="Ver en Google Maps"
               >
-                <span className="flex items-center gap-1 bg-[#60A5FA] text-black text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wider shadow-lg">
-                  <ExternalLink size={10} /> Ver en Maps
-                </span>
               </a>
             </div>
           </div>
@@ -88,7 +85,7 @@ export default function Footer() {
             <ul className="space-y-3">
               <li className="flex items-center gap-3">
                 <MapPin size={16} className="text-[#60A5FA] flex-shrink-0" />
-                <span>Polideportivo Municipal, Agost 03698</span>
+                <span>Av. Elda s/n (Polideportivo) Agost, 03698</span>
               </li>
               <li className="flex items-center gap-3">
                 <Phone size={16} className="text-[#60A5FA] flex-shrink-0" />

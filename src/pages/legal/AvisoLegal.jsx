@@ -11,7 +11,7 @@ export default function AvisoLegal() {
           <p>En cumplimiento del artículo 10 de la Ley 34/2002, de 11 de julio, de Servicios de la Sociedad de la Información y de Comercio Electrónico (LSSI-CE), se informa:</p>
           <ul className="list-disc list-inside mt-3 space-y-1">
             <li><strong>Denominación:</strong> Activa Fitness Agost</li>
-            <li><strong>Dirección:</strong> Polideportivo Municipal, Agost, 03698 Alicante</li>
+            <li><strong>Dirección:</strong> Av. Elda s/n (Polideportivo), Agost, 03698 Alicante</li>
             <li><strong>Teléfono:</strong> <a href="tel:+34676681910" className="text-[#60A5FA] hover:underline">676 681 910</a></li>
             <li><strong>Correo electrónico:</strong> <a href="mailto:activafitnessagost@gmail.com" className="text-[#60A5FA] hover:underline">activafitnessagost@gmail.com</a></li>
           </ul>

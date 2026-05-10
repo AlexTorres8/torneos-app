@@ -10,7 +10,7 @@ export default function Privacidad() {
         <Section titulo="1. Responsable del tratamiento">
           <ul className="list-disc list-inside space-y-1">
             <li><strong>Identidad:</strong> Activa Fitness Agost</li>
-            <li><strong>Dirección:</strong> Polideportivo Municipal, Agost, 03698 Alicante</li>
+            <li><strong>Dirección:</strong> Av. Elda s/n (Polideportivo), Agost, 03698 Alicante</li>
             <li><strong>Contacto:</strong> <a href="mailto:activafitnessagost@gmail.com" className="text-[#60A5FA] hover:underline">activafitnessagost@gmail.com</a></li>
           </ul>
         </Section>
