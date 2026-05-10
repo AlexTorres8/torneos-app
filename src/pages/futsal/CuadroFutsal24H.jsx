@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AlertCircle, RefreshCw, Share2, Wifi, Clock, Trophy, Zap } from 'lucide-react';
+import { AlertCircle, RefreshCw, Share2, Wifi, Clock, Trophy, Zap, Medal } from 'lucide-react';
 import { useRealtimeTorneo } from '../../hooks/useRealtimeTorneo';
 import { BracketConLineas }  from '../../components/ui/BracketConLineas';
 import { StandingsTable }    from '../../components/ui/StandingsTable';
@@ -8,11 +8,17 @@ import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
 import { calcularStats }     from '../../hooks/useCalcStats';
 
-const ESQ_SEMIS = [
-  { id:'s1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'2º Grupo B'} },
-  { id:'s2', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Grupo A'} },
+const ESQ_CUARTOS = [
+  { id:'c1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'Mejor 3º'}    },
+  { id:'c2', hora:'Por conf.', ubicacion:'Pista',    estado:'pendiente', local:{nombre:'2º Grupo C'}, visitante:{nombre:'2º Grupo B'}   },
+  { id:'c3', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Mejor 3º'}  },
+  { id:'c4', hora:'Por conf.', ubicacion:'Pista',    estado:'pendiente', local:{nombre:'1º Grupo C'}, visitante:{nombre:'2º Grupo A'}   },
 ];
-const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador Semifinal 1'}, visitante:{nombre:'Ganador Semifinal 2'} }];
+const ESQ_SEMIS = [
+  { id:'s1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
+  { id:'s2', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
+];
+const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
 
 export default function CuadroFutsal24H() {
   const { torneoId } = useParams();
@@ -29,7 +35,15 @@ export default function CuadroFutsal24H() {
     [grupos, partidos]
   );
 
-const horasUnicas = useMemo(() => {
+  const terceros = useMemo(() =>
+    clasificaciones
+      .filter(g => g.equipos.length >= 3)
+      .map(g => g.equipos[2])
+      .sort((a,b) => b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf),
+    [clasificaciones]
+  );
+
+  const horasUnicas = useMemo(() => {
     const pGrupos = partidos.filter(p => p.fase === 'grupos');
     return [...new Set(pGrupos.map(p => p.hora))].sort((a,b) => {
       const hA = parseInt(a?.split(':')[0] ?? '0');
@@ -39,10 +53,12 @@ const horasUnicas = useMemo(() => {
   }, [partidos]);
 
   const pGrupos = useMemo(() => partidos.filter(p => p.fase === 'grupos'), [partidos]);
+  const cuartos = useMemo(() => partidos.filter(p => p.fase === 'cuartos').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
   const semis   = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
   const finales = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
 
   const rondas = [
+    { label: 'Cuartos',     partidos: cuartos.length > 0 ? cuartos : ESQ_CUARTOS },
     { label: 'Semifinales', partidos: semis.length   > 0 ? semis   : ESQ_SEMIS   },
     { label: 'Gran Final',  partidos: finales.length > 0 ? finales : ESQ_FINAL   },
   ];
@@ -67,7 +83,7 @@ const horasUnicas = useMemo(() => {
   return (
     <div className="max-w-7xl mx-auto pb-20 px-4">
       <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
-        <button onClick={() => navigate(-1)} className="text-sm font-semibold text-slate-400 hover:text-white flex items-center gap-2">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 bg-[#1e293b] hover:bg-slate-700 border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all">
           ← Volver a Ligas
         </button>
         <div className="flex items-center gap-3">
@@ -87,7 +103,7 @@ const horasUnicas = useMemo(() => {
             <Zap className="text-amber-500" size={40} /> Torneo 24 Horas
           </h1>
           <p className="text-amber-500 font-bold tracking-widest uppercase text-sm flex items-center gap-2">
-            <Trophy size={16} /> 1º y 2º de cada grupo pasan a Semifinales
+            <Trophy size={16} /> Se clasifican los 2 primeros de cada grupo y los 2 mejores terceros
           </p>
         </div>
       </div>
@@ -104,6 +120,44 @@ const horasUnicas = useMemo(() => {
           }
         </section>
 
+        {/* Mejores terceros */}
+        {!cargando && terceros.length > 0 && (
+          <section className="bg-slate-800/30 border border-slate-700/50 rounded-2xl p-6 md:p-8">
+            <h2 className="text-lg font-black text-white mb-6 uppercase tracking-widest flex items-center gap-3">
+              <Medal className="text-amber-500" /> Clasificación Mejores 3º
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm whitespace-nowrap bg-[#1e293b] rounded-xl overflow-hidden shadow-xl border border-slate-700">
+                <thead className="bg-[#0f172a] uppercase font-black text-slate-500 text-xs">
+                  <tr>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3">Equipo</th>
+                    <th className="px-4 py-3 text-slate-400">Grupo</th>
+                    <th className="px-4 py-3 text-center text-amber-500">Pts</th>
+                    <th className="px-4 py-3 text-center">Dif.</th>
+                    <th className="px-4 py-3 text-center">GF</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700/50 text-slate-200">
+                  {terceros.map((t, i) => (
+                    <tr key={t.id} className={i < 2 ? 'bg-emerald-500/10' : 'opacity-50'}>
+                      <td className="px-4 py-3 text-center">
+                        {i < 2
+                          ? <span className="text-emerald-500 text-[10px] font-black bg-emerald-500/20 px-2 py-1 rounded uppercase tracking-widest">Clasificado</span>
+                          : <span className="text-red-500 text-[10px] font-black bg-red-500/20 px-2 py-1 rounded uppercase tracking-widest">Eliminado</span>}
+                      </td>
+                      <td className="px-4 py-3 font-black text-white">{t.nombre}</td>
+                      <td className="px-4 py-3 text-slate-400 text-xs font-bold">{t.grupo}</td>
+                      <td className="px-4 py-3 text-center font-black text-amber-500 text-base">{t.stats.pts}</td>
+                      <td className="px-4 py-3 text-center font-bold">{t.stats.dif > 0 ? `+${t.stats.dif}` : t.stats.dif}</td>
+                      <td className="px-4 py-3 text-center font-bold text-slate-400">{t.stats.gf}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Timeline horarios */}
         {!cargando && horasUnicas.length > 0 && (
@@ -133,7 +187,7 @@ const horasUnicas = useMemo(() => {
             <Trophy className="text-amber-500" /> Fase Final (Madrugada)
           </h2>
           {cargando
-            ? <Skeleton.Bracket rondas={2} />
+            ? <Skeleton.Bracket rondas={3} />
             : <BracketConLineas rondas={rondas} variant="futsal24h" />
           }
         </section>

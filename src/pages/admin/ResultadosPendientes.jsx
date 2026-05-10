@@ -3,6 +3,8 @@ import { Check, X, AlertCircle, RotateCcw, ChevronDown, ChevronUp } from 'lucide
 import { supabase } from '../../supabase';
 import { validarResultadoPadel } from '../../lib/validarPadel';
 import { HoraUbicacionPicker } from '../../components/ui/HoraUbicacionPicker';
+import { sanitizarDetalle } from '../../lib/sanitize';
+import { checkRateLimit } from '../../lib/rateLimit';
 
 export default function ResultadosPendientes({ partidos, onActualizar }) {
   const [editando,      setEditando]      = useState(null);
@@ -37,14 +39,18 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
 
   const pedirConfirmacion = (id, l, v, detalle, esPadel) => {
     clearError(id);
+    const { ok: rlOk, resetIn } = checkRateLimit('guardar-resultado', 20, 60_000);
+    if (!rlOk) { setError(id, `Demasiadas peticiones. Espera ${resetIn}s.`); return; }
+
+    const detalleClean = detalle ? sanitizarDetalle(detalle) : null;
     if (esPadel) {
-      const { ok, error } = validarResultadoPadel(l, v, detalle);
+      const { ok, error } = validarResultadoPadel(l, v, detalleClean);
       if (!ok) { setError(id, error); return; }
     } else if (isNaN(parseInt(l)) || isNaN(parseInt(v)) || parseInt(l) < 0 || parseInt(v) < 0) {
       setError(id, 'Introduce marcadores válidos.');
       return;
     }
-    setConfirmando({ id, l, v, detalle, esPadel });
+    setConfirmando({ id, l, v, detalle: detalleClean, esPadel });
   };
 
   const guardarConfirmado = async () => {
@@ -205,7 +211,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
                 {esPadel && (
                   <div>
                     <label className="block text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1 text-center">Detalle de sets (para desempate)</label>
-                    <input name="detalle" type="text" placeholder="Ej: 6-4, 4-6, 7-6" onChange={() => clearError(p.id)}
+                    <input name="detalle" type="text" placeholder="Ej: 6-4, 4-6, 7-6" maxLength={30} onChange={() => clearError(p.id)}
                       className={`w-full bg-black border rounded-lg p-2.5 text-center text-sm text-white uppercase tracking-wider outline-none transition-colors ${errores[p.id] ? 'border-red-500' : 'border-slate-600 focus:border-amber-500'}`} />
                   </div>
                 )}

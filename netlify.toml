@@ -1,0 +1,36 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# ── Cabeceras de seguridad para todas las rutas ────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Impide que la web se cargue dentro de un iframe (clickjacking)
+    X-Frame-Options = "DENY"
+
+    # El navegador no puede adivinar el tipo MIME de los recursos
+    X-Content-Type-Options = "nosniff"
+
+    # Fuerza HTTPS durante 1 año
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+
+    # Solo envía el origen en cabecera Referer (sin path)
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+    # Deshabilita sensores/hardware no usados
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
+
+    # Content-Security-Policy:
+    #   script-src  → solo nuestros bundles (no eval, no inline)
+    #   style-src   → unsafe-inline necesario por los style={{}} de React/Tailwind
+    #   connect-src → Supabase REST + WebSocket (realtime)
+    #   frame-src   → Google Maps embed del footer
+    #   img-src     → self + data URIs + cualquier https (og:image, etc.)
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; frame-src https://maps.google.com https://www.google.com; font-src 'self'; object-src 'none'; base-uri 'self';"
+
+# ── Assets estáticos: caché larga ─────────────────────────────────────────────
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

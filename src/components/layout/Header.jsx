@@ -12,7 +12,7 @@ export default function Header() {
         CORRECCIÓN: el header ahora tiene h-16 md:h-20 para que el logo
         no lo desborde. El logo usa h-10 md:h-14 — siempre menor que el header.
       */}
-      <header className="fixed top-0 w-full flex justify-start items-center p-4 md:px-8 bg-[#0b1121]/70 backdrop-blur-md border-b border-white/10 z-50 shadow-lg h-16 md:h-20 transition-all">
+      <header className="fixed top-0 w-full flex justify-start items-center p-4 md:px-8 bg-[#0b1121]/70 backdrop-blur-md border-b border-white/10 z-50 shadow-lg h-20 md:h-24 transition-all">
 
         <button
           onClick={() => setMenuAbierto(!menuAbierto)}
@@ -30,13 +30,13 @@ export default function Header() {
           <img
             src="/logo.png"
             alt="Activa Fitness Agost"
-            className="h-10 md:h-14 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+            className="h-14 md:h-18 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
           />
         </Link>
       </header>
 
       {/* Spacer — misma altura que el header */}
-      <div className="h-16 md:h-20" />
+      <div className="h-20 md:h-24" />
 
       <Sidebar abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />
     </>

@@ -133,11 +133,11 @@ export default function ExportarClasificacion() {
         <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
           Torneo
         </label>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <select
             value={torneoId}
             onChange={(e) => { setTorneoId(e.target.value); setTexto(''); setErrorMsg(''); }}
-            className="flex-1 bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white font-bold focus:border-[#60A5FA] outline-none transition-colors"
+            className="flex-1 bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white font-bold focus:border-[#60A5FA] outline-none transition-colors [&>option]:bg-[#0f172a]"
           >
             <option value="">— Selecciona un torneo —</option>
             {torneos.map((t) => (
@@ -147,7 +147,7 @@ export default function ExportarClasificacion() {
           <button
             onClick={generarTexto}
             disabled={!torneoId || cargando}
-            className="bg-[#60A5FA] hover:bg-blue-400 disabled:opacity-40 text-black font-black uppercase tracking-widest px-5 rounded-xl transition-all flex items-center gap-2 text-xs whitespace-nowrap"
+            className="bg-[#60A5FA] hover:bg-blue-400 disabled:opacity-40 text-black font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs whitespace-nowrap"
           >
             {cargando
               ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />

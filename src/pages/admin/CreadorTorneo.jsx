@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Wand2, Users, ChevronDown, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../supabase';
+import { sanitizarNombre, sanitizarEquipo } from '../../lib/sanitize';
+import { checkRateLimit } from '../../lib/rateLimit';
 
 // ─── Utilidades ────────────────────────────────────────────────────────────────
 
@@ -53,15 +55,17 @@ export default function CreadorTorneo({ onTorneoCreado }) {
   const parsearEquipos = () => {
     return textoEquipos
       .split(/[\n,]+/)
-      .map((e) => e.trim())
+      .map((e) => sanitizarEquipo(e))
       .filter(Boolean);
   };
 
   // ── Generar preview (sin tocar la BD) ─────────────────────────────────────
   const generarPreview = () => {
     setError('');
-    const equipos = parsearEquipos();
+    const { ok, resetIn } = checkRateLimit('crear-torneo', 10, 60_000);
+    if (!ok) { setError(`Demasiadas acciones. Espera ${resetIn}s e inténtalo de nuevo.`); return; }
 
+    const equipos = parsearEquipos();
     if (!nombre.trim()) { setError('Escribe un nombre para el torneo.'); return; }
     if (equipos.length < 4) { setError('Necesitas al menos 4 equipos/parejas.'); return; }
 
@@ -81,7 +85,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       // 1. Torneo
       const { data: torneo, error: e1 } = await supabase
         .from('torneos')
-        .insert([{ nombre: nombre.trim(), deporte, estado }])
+        .insert([{ nombre: sanitizarNombre(nombre), deporte, estado }])
         .select()
         .single();
       if (e1) throw new Error('Error creando torneo: ' + e1.message);
@@ -185,6 +189,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
             <input
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
+              maxLength={60}
               placeholder="Ej: Liga Futsal Verano 2026"
               className="w-full bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white font-bold focus:border-[#60A5FA] outline-none transition-colors"
             />
