@@ -60,6 +60,7 @@ export function useRealtimeTorneo(torneoId) {
   }, [torneoId]);
 
   // Carga inicial
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, [cargar]);
 
   // Suscripción Realtime — escucha cambios en la tabla "partidos"

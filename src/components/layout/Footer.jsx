@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Dumbbell, MapPin, Phone, Mail, ExternalLink } from 'lucide-react';
+import { Dumbbell, MapPin, Phone, Mail } from 'lucide-react';
 import { Instagram, Facebook } from '../ui/Iconos';
 
 const MAPS_LINK = 'https://www.google.com/maps/search/?api=1&query=Polideportivo+Municipal,+Agost,+Alicante';

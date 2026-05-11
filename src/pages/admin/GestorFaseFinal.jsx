@@ -46,6 +46,7 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!torneoId) { setParticipantes([]); return; }
 
     const torneo = torneos.find((t) => t.id === torneoId);

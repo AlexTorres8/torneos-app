@@ -1,12 +1,9 @@
 import { supabase } from '../supabase';
 import { calcularStats } from '../hooks/useCalcStats';
 
-// Ordenación de pádel idéntica a la del cuadro público:
-// 1. Puntos  2. Partido directo  3. Set-avg  4. Juego-avg  5. GF
 function ordenarGrupoPadel(equipos, partidos) {
   return [...equipos].sort((a, b) => {
     if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
-
     const pd = partidos.find(p =>
       p.fase === 'grupos' && p.estado === 'finalizado' &&
       ((p.local_id === a.id && p.visitante_id === b.id) ||
@@ -18,25 +15,67 @@ function ordenarGrupoPadel(equipos, partidos) {
       const sB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
       if (sA !== sB) return sB - sA;
     }
-
-    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
+    if (b.stats.dif  !== a.stats.dif)  return b.stats.dif  - a.stats.dif;
     if ((b.stats.jdif ?? 0) !== (a.stats.jdif ?? 0)) return (b.stats.jdif ?? 0) - (a.stats.jdif ?? 0);
     return b.stats.gf - a.stats.gf;
   });
 }
 
-// Ordenación genérica para futsal
 function ordenarGrupoFutsal(equipos) {
   return [...equipos].sort((a, b) =>
-    b.stats.pts - a.stats.pts ||
-    b.stats.dif - a.stats.dif ||
-    b.stats.gf  - a.stats.gf
+    b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf
   );
 }
 
+/** Devuelve el equipo ganador de un partido finalizado, o null si hay empate. */
+function getGanador(partido) {
+  const gL = partido.puntuacion_local    ?? 0;
+  const gV = partido.puntuacion_visitante ?? 0;
+  if (gL > gV) return { id: partido.local_id,    nombre: partido.local?.nombre    ?? '?' };
+  if (gV > gL) return { id: partido.visitante_id, nombre: partido.visitante?.nombre ?? '?' };
+  return null;
+}
+
 /**
- * Calcula qué partidos de fase final deben crearse en función de las
- * clasificaciones actuales de grupos.
+ * Genera la siguiente fase eliminatoria a partir de los ganadores de
+ * la fase anterior (cuartos → semis, semis → final).
+ *
+ * Los partidos de origen deben estar ordenados por jornada.
+ * Se emparejan de dos en dos: ganador(J1) vs ganador(J2), ganador(J3) vs ganador(J4)…
+ */
+function _generarDesdeFaseAnterior(fase, origen, torneoId) {
+  if (origen.length % 2 !== 0) {
+    throw new Error(`Número impar de partidos en la fase anterior (${origen.length}). No se puede generar ${fase} automáticamente.`);
+  }
+
+  const pares = [];
+  for (let i = 0; i < origen.length; i += 2) {
+    const p1 = origen[i];
+    const p2 = origen[i + 1];
+    const g1 = getGanador(p1);
+    const g2 = getGanador(p2);
+    if (!g1) throw new Error(`Sin ganador claro en el partido ${p1.jornada} de la fase anterior (¿empate?).`);
+    if (!g2) throw new Error(`Sin ganador claro en el partido ${p2.jornada} de la fase anterior (¿empate?).`);
+    pares.push({ etiq: `${g1.nombre} vs ${g2.nombre}`, local: g1, visitante: g2 });
+  }
+
+  const insertar = pares.map((p, i) => ({
+    torneo_id: torneoId, fase, jornada: i + 1,
+    hora: null, ubicacion: null, estado: 'pendiente',
+    local_id: p.local.id, visitante_id: p.visitante.id,
+  }));
+
+  return { fase, preview: pares, insertar };
+}
+
+/**
+ * Calcula qué partidos de fase eliminatoria deben crearse.
+ *
+ * Lógica de prioridad:
+ *   1. Si semis existen y están todas finalizadas → genera final.
+ *   2. Si cuartos existen y están todos finalizados → genera semis.
+ *   3. Si playoffs existen y están todos finalizados → genera cuartos.
+ *   4. Si ninguna fase eliminatoria existe → genera desde grupos.
  *
  * Devuelve { fase, preview, insertar } sin tocar la BD.
  * Llama a confirmarFaseAuto() para insertar.
@@ -51,44 +90,78 @@ export async function calcularFaseAuto(torneoId, deporte) {
   if (e1) throw new Error('Error cargando grupos: ' + e1.message);
   if (!grupos?.length) throw new Error('Este torneo no tiene grupos creados.');
 
-  // ── 2. Cargar partidos ────────────────────────────────────────────────────
+  // ── 2. Cargar partidos (con nombres de equipos para las fases knock-out) ──
   const { data: partidos, error: e2 } = await supabase
     .from('partidos')
-    .select('id, estado, fase, local_id, visitante_id, puntuacion_local, puntuacion_visitante, detalle_resultado')
+    .select([
+      'id', 'estado', 'fase', 'jornada',
+      'local_id', 'visitante_id',
+      'puntuacion_local', 'puntuacion_visitante', 'detalle_resultado',
+      'local:participantes!local_id(id, nombre)',
+      'visitante:participantes!visitante_id(id, nombre)',
+    ].join(', '))
     .eq('torneo_id', torneoId);
   if (e2) throw new Error('Error cargando partidos: ' + e2.message);
 
-  const grupales   = partidos?.filter(p => p.fase === 'grupos') ?? [];
+  const todos = partidos ?? [];
+
+  const byFase = (fase) => todos.filter(p => p.fase === fase).sort((a, b) => a.jornada - b.jornada);
+  const cuartos  = byFase('cuartos');
+  const semis    = byFase('semis');
+  const finales  = byFase('final');
+  const playoffs = byFase('playoffs');
+
+  // ── 3. Prioridad: generar final desde semis finalizadas ───────────────────
+  if (semis.length > 0) {
+    if (finales.length > 0) throw new Error('La final ya existe en este torneo.');
+    const pendientes = semis.filter(p => p.estado !== 'finalizado');
+    if (pendientes.length > 0) throw new Error(`Faltan ${pendientes.length} semifinal(es) por finalizar.`);
+    return _generarDesdeFaseAnterior('final', semis, torneoId);
+  }
+
+  // ── 4. Generar semis desde cuartos finalizados ────────────────────────────
+  if (cuartos.length > 0) {
+    if (semis.length > 0) throw new Error('Las semifinales ya existen en este torneo.');
+    const pendientes = cuartos.filter(p => p.estado !== 'finalizado');
+    if (pendientes.length > 0) throw new Error(`Faltan ${pendientes.length} cuarto(s) de final por finalizar.`);
+    return _generarDesdeFaseAnterior('semis', cuartos, torneoId);
+  }
+
+  // ── 5. Generar cuartos desde playoffs finalizados (pádel) ─────────────────
+  if (playoffs.length > 0) {
+    if (cuartos.length > 0) throw new Error('Los cuartos de final ya existen en este torneo.');
+    const pendientes = playoffs.filter(p => p.estado !== 'finalizado');
+    if (pendientes.length > 0) throw new Error(`Faltan ${pendientes.length} partido(s) de la ronda previa por finalizar.`);
+    return _generarDesdeFaseAnterior('cuartos', playoffs, torneoId);
+  }
+
+  // ── 6. Generar primera fase desde clasificaciones de grupos ───────────────
+  const grupales    = todos.filter(p => p.fase === 'grupos');
   const finalizados = grupales.filter(p => p.estado === 'finalizado');
 
   if (!finalizados.length) {
     throw new Error('No hay partidos de grupos finalizados todavía.');
   }
 
-  // ── 3. Clasificar cada grupo con la misma lógica que el cuadro público ────
   const clasificaciones = grupos
     .sort((a, b) => a.nombre.localeCompare(b.nombre))
     .map(g => {
       const conStats = g.grupo_participantes.map(gp => ({
         ...gp.participantes,
-        stats: calcularStats(partidos, gp.participantes.id, deporte),
+        stats: calcularStats(todos, gp.participantes.id, deporte),
       }));
       return {
         nombre: g.nombre,
         equipos: deporte === 'padel'
-          ? ordenarGrupoPadel(conStats, partidos)
+          ? ordenarGrupoPadel(conStats, todos)
           : ordenarGrupoFutsal(conStats),
       };
     });
 
   const nGrupos = clasificaciones.length;
-
-  // ── 4. Construir emparejamientos según estructura ─────────────────────────
   let fase, pares;
 
   if (nGrupos === 2 && deporte === 'padel') {
-    // Pádel 2 grupos: playoffs cruzados (2ºA-3ºB / 2ºB-3ºA)
-    // Los 1º de grupo esperan en cuartos
     const [ga, gb] = clasificaciones;
     fase  = 'playoffs';
     pares = [
@@ -99,9 +172,7 @@ export async function calcularFaseAuto(torneoId, deporte) {
   } else if (nGrupos === 2) {
     const [ga, gb] = clasificaciones;
     const tamGrupo  = Math.max(ga.equipos.length, gb.equipos.length);
-
     if (tamGrupo >= 4) {
-      // Futsal 8+ equipos: cuartos cruzados 1ºA-4ºB / 2ºB-3ºA / 1ºB-4ºA / 2ºA-3ºB
       fase  = 'cuartos';
       pares = [
         { etiq: `1º ${ga.nombre} vs 4º ${gb.nombre}`, local: ga.equipos[0], visitante: gb.equipos[3] },
@@ -110,7 +181,6 @@ export async function calcularFaseAuto(torneoId, deporte) {
         { etiq: `2º ${ga.nombre} vs 3º ${gb.nombre}`, local: ga.equipos[1], visitante: gb.equipos[2] },
       ];
     } else {
-      // Futsal 6 equipos: semifinales directas 1ºA-2ºB / 1ºB-2ºA
       fase  = 'semis';
       pares = [
         { etiq: `1º ${ga.nombre} vs 2º ${gb.nombre}`, local: ga.equipos[0], visitante: gb.equipos[1] },
@@ -119,31 +189,23 @@ export async function calcularFaseAuto(torneoId, deporte) {
     }
 
   } else if (nGrupos === 3) {
-    // Torneo 24h: cuartos con los 2 mejores terceros
     const [ga, gb, gc] = clasificaciones;
     const terceros = clasificaciones
       .filter(g => g.equipos.length >= 3)
       .map(g => g.equipos[2])
       .sort((a, b) =>
-        b.stats.pts - a.stats.pts ||
-        b.stats.dif - a.stats.dif ||
-        b.stats.gf  - a.stats.gf
+        b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf
       );
-
-    if (terceros.length < 2) {
-      throw new Error('Faltan resultados para calcular los 2 mejores terceros.');
-    }
-
+    if (terceros.length < 2) throw new Error('Faltan resultados para calcular los 2 mejores terceros.');
     fase  = 'cuartos';
     pares = [
-      { etiq: `1º ${ga.nombre} vs Mejor 3º`,          local: ga.equipos[0], visitante: terceros[0]    },
-      { etiq: `2º ${gc.nombre} vs 2º ${gb.nombre}`,   local: gc.equipos[1], visitante: gb.equipos[1]  },
-      { etiq: `1º ${gb.nombre} vs 2º Mejor 3º`,       local: gb.equipos[0], visitante: terceros[1]    },
-      { etiq: `1º ${gc.nombre} vs 2º ${ga.nombre}`,   local: gc.equipos[0], visitante: ga.equipos[1]  },
+      { etiq: `1º ${ga.nombre} vs Mejor 3º`,        local: ga.equipos[0], visitante: terceros[0]   },
+      { etiq: `2º ${gc.nombre} vs 2º ${gb.nombre}`, local: gc.equipos[1], visitante: gb.equipos[1] },
+      { etiq: `1º ${gb.nombre} vs 2º Mejor 3º`,     local: gb.equipos[0], visitante: terceros[1]   },
+      { etiq: `1º ${gc.nombre} vs 2º ${ga.nombre}`, local: gc.equipos[0], visitante: ga.equipos[1] },
     ];
 
   } else if (nGrupos === 4) {
-    // Pádel (4 grupos): ronda previa (playoffs)
     const [ga, gb, gc, gd] = clasificaciones;
     fase  = 'playoffs';
     pares = [
@@ -157,32 +219,15 @@ export async function calcularFaseAuto(torneoId, deporte) {
     throw new Error(`No hay regla automática para ${nGrupos} grupos.`);
   }
 
-  // Filtrar emparejamientos incompletos (equipo sin ID)
   pares = pares.filter(p => p.local?.id && p.visitante?.id);
-
   if (!pares.length) {
     throw new Error('No hay suficientes resultados finalizados para determinar los clasificados.');
   }
 
-  // ── 5. Comprobar que la fase no existe ya ─────────────────────────────────
-  const yaExistentes = partidos?.filter(p => p.fase === fase) ?? [];
-  if (yaExistentes.length > 0) {
-    throw new Error(
-      `Ya existen ${yaExistentes.length} partido(s) de ${fase} en este torneo. ` +
-      `Elimínalos desde la base de datos antes de regenerar.`
-    );
-  }
-
-  // ── 6. Preparar objetos para insertar ────────────────────────────────────
   const insertar = pares.map((p, i) => ({
-    torneo_id:    torneoId,
-    fase,
-    jornada:      i + 1,
-    hora:         null,
-    ubicacion:    null,
-    estado:       'pendiente',
-    local_id:     p.local.id,
-    visitante_id: p.visitante.id,
+    torneo_id: torneoId, fase, jornada: i + 1,
+    hora: null, ubicacion: null, estado: 'pendiente',
+    local_id: p.local.id, visitante_id: p.visitante.id,
   }));
 
   return { fase, preview: pares, insertar };

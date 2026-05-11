@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Pencil, X, Save, Loader2, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
+import { Pencil, X, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../supabase';
 
 const ESTADOS_COMUNES = [
@@ -29,6 +29,7 @@ export default function EditarEstadoTorneo() {
     setCargando(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, []);
 
   const abrirEdicion = (t) => {

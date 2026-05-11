@@ -29,6 +29,7 @@ export default function TorneosPadel() {
     setCargando(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, []);
 
   const mostrar = torneos.filter((t) =>

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock, Phone, Mail, MapPin, Users, Heart, Dumbbell } from 'lucide-react';
+import { Clock, Phone, Mail, MapPin, Users, Heart } from 'lucide-react';
 
 const CLASES = ['PILATES', 'FIT', 'A.B.D', 'CICLO', 'FUNCIONAL / TRX', 'PUMP', 'G.A.P'];
 

@@ -92,10 +92,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       const tId = torneo.id;
 
       // 2. Grupos
-      const insGrupos = preview.grupos.map((_, i) => ({
-        torneo_id: tId,
-        nombre: `GRUPO ${letraGrupo(i)}`,
-      }));
+      const insGrupos = preview.grupos.map((_, i) => ({ torneo_id: tId, nombre: `GRUPO ${letraGrupo(i)}` }));
       const { data: gruposDB, error: e2 } = await supabase
         .from('grupos')
         .insert(insGrupos)
@@ -123,7 +120,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       if (e4) throw new Error('Error asignando participantes: ' + e4.message);
 
       // 5. Generar partidos de liguilla (sin hora/pista, el admin las edita después)
-      const partidos = preview.grupos.flatMap((equipos, gi) => {
+      const partidos = preview.grupos.flatMap((equipos) => {
         const cruces  = generarLiguilla(equipos);
         return cruces.map((cruce, ci) => ({
           torneo_id:   tId,

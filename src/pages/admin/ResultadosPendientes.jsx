@@ -22,6 +22,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
 
   useEffect(() => {
     if (!verFinalizados) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCargandoFin(true);
     const torneoIds = [...new Set(partidos.map((p) => p.torneo_id).filter(Boolean))];
     const q = supabase

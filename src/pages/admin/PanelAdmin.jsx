@@ -71,6 +71,7 @@ export default function PanelAdmin() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarDatos();
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) setUsuarioEmail(user.email);

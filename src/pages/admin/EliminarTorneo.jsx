@@ -7,8 +7,6 @@ export default function EliminarTorneo() {
   const [eliminando, setEliminando] = useState(null);
   const [mensaje,    setMensaje]    = useState({ tipo: '', texto: '' });
 
-  useEffect(() => { cargar(); }, []);
-
   const cargar = async () => {
     const { data } = await supabase
       .from('torneos')
@@ -16,6 +14,9 @@ export default function EliminarTorneo() {
       .order('nombre');
     if (data) setTorneos(data);
   };
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { cargar(); }, []);
 
   const eliminar = async (torneo) => {
     if (!window.confirm(

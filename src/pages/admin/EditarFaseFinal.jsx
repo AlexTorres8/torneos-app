@@ -46,6 +46,7 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
     setCargando(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { cargar(); }, [torneoId]);
 
   const limpiarError = (id) => setErrores(p => { const n = { ...p }; delete n[id]; return n; });

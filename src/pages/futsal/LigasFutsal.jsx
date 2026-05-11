@@ -28,6 +28,7 @@ export default function LigasFutsal() {
     setCargando(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, []);
 
   return (

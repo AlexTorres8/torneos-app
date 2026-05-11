@@ -52,6 +52,7 @@ export default function PartidosFinalizados({ torneos }) {
     setCargando(false);
   };
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
   useEffect(() => { cargar(); }, [filtroTorneo]);
 
   // ── Abrir editor ────────────────────────────────────────────────────────
