@@ -4,6 +4,7 @@ import { AlertCircle, RefreshCw, Share2, Wifi } from 'lucide-react';
 import { useRealtimeTorneo } from '../../hooks/useRealtimeTorneo';
 import { BracketConLineas }  from '../../components/ui/BracketConLineas';
 import { StandingsTable }    from '../../components/ui/StandingsTable';
+import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
 import { calcularStats }     from '../../hooks/useCalcStats';
 
@@ -19,6 +20,8 @@ const ESQ_SEMIS = [
 ];
 const ESQ_FINAL = [{ id:'f1', hora:'21:00', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
 
+const NOMBRES_JORNADAS = { 1:'Jornada 1', 2:'Jornada 2', 3:'Jornada 3', 4:'Jornada 4', 5:'Jornada 5', 6:'Jornada 6' };
+
 export default function CuadroFutsal() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
@@ -32,6 +35,11 @@ export default function CuadroFutsal() {
         .sort((a, b) => b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf),
     })),
     [grupos, partidos]
+  );
+
+  const jornadasGrupos = useMemo(() =>
+    [...new Set(partidos.filter(p => p.fase === 'grupos').map(p => p.jornada))].sort((a,b) => a - b),
+    [partidos]
   );
 
   const cuartos = useMemo(() => partidos.filter(p => p.fase === 'cuartos').sort((a,b) => a.jornada - b.jornada), [partidos]);
@@ -92,6 +100,27 @@ export default function CuadroFutsal() {
               </div>
           }
         </section>
+
+        {!cargando && jornadasGrupos.length > 0 && (
+          <section>
+            <h2 className="text-xl font-black text-white mb-8 uppercase tracking-widest border-l-4 border-blue-500 pl-4">Calendario de Grupos</h2>
+            <div className="grid gap-8">
+              {jornadasGrupos.map(jornada => (
+                <div key={jornada} className="bg-[#1e293b]/50 rounded-xl border border-slate-800 p-6 shadow-md">
+                  <h3 className="text-blue-400 font-black uppercase tracking-widest text-sm mb-6 flex items-center gap-2 border-b border-slate-700/50 pb-3">
+                    <span>🕒</span> {NOMBRES_JORNADAS[jornada] || `Jornada ${jornada}`}
+                  </h3>
+                  <div className="flex flex-wrap gap-5">
+                    {partidos
+                      .filter(p => p.fase === 'grupos' && p.jornada === jornada)
+                      .sort((a,b) => (a.hora ?? '').localeCompare(b.hora ?? ''))
+                      .map(p => <MatchNode key={p.id} p={p} variant="futsal" />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section>
           <h2 className="text-xl font-black text-white mb-10 uppercase tracking-widest border-l-4 border-blue-500 pl-4">
