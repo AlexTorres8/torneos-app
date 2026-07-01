@@ -1,44 +1,6 @@
 import { supabase } from '../supabase';
 import { calcularStats } from '../hooks/useCalcStats';
-
-function ordenarGrupoPadel(equipos, partidos) {
-  return [...equipos].sort((a, b) => {
-    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
-    const pd = partidos.find(p =>
-      p.fase === 'grupos' && p.estado === 'finalizado' &&
-      ((p.local_id === a.id && p.visitante_id === b.id) ||
-       (p.local_id === b.id && p.visitante_id === a.id))
-    );
-    if (pd) {
-      const esALocal = pd.local_id === a.id;
-      const sA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
-      const sB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
-      if (sA !== sB) return sB - sA;
-    }
-    if (b.stats.dif  !== a.stats.dif)  return b.stats.dif  - a.stats.dif;
-    if ((b.stats.jdif ?? 0) !== (a.stats.jdif ?? 0)) return (b.stats.jdif ?? 0) - (a.stats.jdif ?? 0);
-    return b.stats.gf - a.stats.gf;
-  });
-}
-
-function ordenarGrupoFutsal(equipos, partidos) {
-  return [...equipos].sort((a, b) => {
-    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
-    const pd = partidos.find(p =>
-      p.fase === 'grupos' && p.estado === 'finalizado' &&
-      ((p.local_id === a.id && p.visitante_id === b.id) ||
-       (p.local_id === b.id && p.visitante_id === a.id))
-    );
-    if (pd) {
-      const esALocal = pd.local_id === a.id;
-      const gA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
-      const gB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
-      if (gA !== gB) return gB - gA;
-    }
-    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
-    return b.stats.gf - a.stats.gf;
-  });
-}
+import { ordenarClasificacion } from './clasificacion';
 
 /** Devuelve el equipo ganador de un partido finalizado, o null si hay empate. */
 function getGanador(partido) {
@@ -173,9 +135,7 @@ export async function calcularFaseAuto(torneoId, deporte) {
     }));
     return {
       nombre: g.nombre,
-      equipos: deporte === 'padel'
-        ? ordenarGrupoPadel(conStats, todos)
-        : ordenarGrupoFutsal(conStats, todos),
+      equipos: ordenarClasificacion(conStats, todos, deporte),
     };
   });
 

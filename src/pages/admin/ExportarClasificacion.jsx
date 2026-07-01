@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Copy, CheckCircle2, MessageCircle } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { calcularStats } from '../../hooks/useCalcStats';
+import { ordenarClasificacion } from '../../lib/clasificacion';
 
 /**
  * Genera un texto con la clasificación de un torneo
@@ -65,12 +66,14 @@ export default function ExportarClasificacion() {
       lineas.push(`📊 Clasificación\n`);
 
       grupos.forEach((g) => {
-        const equipos = g.grupo_participantes
-          .map((gp) => ({
+        const equipos = ordenarClasificacion(
+          g.grupo_participantes.map((gp) => ({
             ...gp.participantes,
             stats: calcularStats(partidos, gp.participantes.id, deporte),
-          }))
-          .sort((a, b) => b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf);
+          })),
+          partidos,
+          deporte
+        );
 
         lineas.push(`*── ${g.nombre} ──*`);
 

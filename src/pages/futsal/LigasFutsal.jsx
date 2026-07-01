@@ -72,7 +72,11 @@ export default function LigasFutsal() {
             {!cargando && !error && torneos.length > 0 && (
               <div className="grid gap-5">
                 {torneos.map((torneo) => {
-                  const es24h = torneo.nombre.toLowerCase().includes('24');
+                  // Preferimos el campo `formato`; si faltara (torneo antiguo),
+                  // recaemos en detectar "24" en el nombre.
+                  const es24h = torneo.formato
+                    ? torneo.formato === '24h'
+                    : torneo.nombre.toLowerCase().includes('24');
                   return (
                     <div
                       key={torneo.id}

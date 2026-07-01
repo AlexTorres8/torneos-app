@@ -9,7 +9,7 @@ export async function generarTorneo24h() {
     // 1. Crear el torneo
     const { data: torneo, error: errTorneo } = await supabase
       .from('torneos')
-      .insert([{ nombre: 'Torneo 24h 2026', deporte: 'futsal', estado: 'Inscripciones cerradas' }])
+      .insert([{ nombre: 'Torneo 24h 2026', deporte: 'futsal', estado: 'Inscripciones cerradas', formato: '24h' }])
       .select()
       .single();
 
@@ -32,7 +32,7 @@ export async function generarTorneo24h() {
     const gB = grupos.find((g) => g.nombre === 'GRUPO B').id;
     const gC = grupos.find((g) => g.nombre === 'GRUPO C').id;
 
-    // 3. Crear los 12 equipos (upsert por si ya existen de otro torneo)
+    // 3. Crear los 12 equipos (con alcance de este torneo)
     const nombresEquipos = [
       'WEST JAMON', 'MINAVO DE KIEV', 'CATICARDIAS', 'EL SEQUET',
       'K.91', 'KAULA Y ELIXIR', 'FZ FITNESS', 'FRAN GONZALEZ (LACADOS)',
@@ -41,7 +41,7 @@ export async function generarTorneo24h() {
 
     const { data: equipos, error: errEquipos } = await supabase
       .from('participantes')
-      .upsert(nombresEquipos.map((nombre) => ({ nombre })), { onConflict: 'nombre' })
+      .insert(nombresEquipos.map((nombre) => ({ nombre, torneo_id: tId })))
       .select();
 
     if (errEquipos) throw new Error('Error creando equipos: ' + errEquipos.message);

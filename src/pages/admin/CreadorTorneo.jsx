@@ -64,7 +64,10 @@ function generarCalendarioJornadas(equipos) {
 const letraGrupo = (i) => String.fromCharCode(65 + i);
 
 const FRANJAS_HORARIAS = ['21:00', '22:00'];
-const SEDES_FUTSAL     = ['Pista Exterior', 'Pabellón'];
+const SEDES_POR_DEPORTE = {
+  futsal: ['Pista Exterior', 'Pabellón'],
+  padel:  ['Pista 1', 'Pista 2'],
+};
 
 /**
  * Asigna hora y sede automáticamente cuando el torneo tiene exactamente 2 grupos
@@ -72,15 +75,17 @@ const SEDES_FUTSAL     = ['Pista Exterior', 'Pabellón'];
  * Cada jornada usa las franjas 21:00 y 22:00: en cada franja se juega un partido
  * en cada sede, y el grupo asignado a cada sede se alterna de una jornada a otra
  * para que no siempre caigan los mismos partidos en el mismo sitio.
+ * Las sedes dependen del deporte (pistas de pádel vs sedes de futsal).
  */
-function asignarHorarioDosGrupos(jornadasPorGrupo) {
+function asignarHorarioDosGrupos(jornadasPorGrupo, deporte = 'futsal') {
+  const sedes = SEDES_POR_DEPORTE[deporte] ?? SEDES_POR_DEPORTE.futsal;
   const [jornadasA, jornadasB] = jornadasPorGrupo;
   const nJornadas = Math.max(jornadasA.length, jornadasB.length);
   const partidos = [];
 
   for (let ji = 0; ji < nJornadas; ji++) {
-    const sedeA = ji % 2 === 0 ? SEDES_FUTSAL[0] : SEDES_FUTSAL[1];
-    const sedeB = ji % 2 === 0 ? SEDES_FUTSAL[1] : SEDES_FUTSAL[0];
+    const sedeA = ji % 2 === 0 ? sedes[0] : sedes[1];
+    const sedeB = ji % 2 === 0 ? sedes[1] : sedes[0];
 
     (jornadasA[ji] || []).forEach((cruce, idx) => {
       partidos.push({ ...cruce, grupoIdx: 0, jornada: ji + 1, hora: FRANJAS_HORARIAS[idx] ?? null, ubicacion: sedeA });
@@ -97,6 +102,7 @@ function asignarHorarioDosGrupos(jornadasPorGrupo) {
 export default function CreadorTorneo({ onTorneoCreado }) {
   const [nombre,      setNombre]      = useState('');
   const [deporte,     setDeporte]     = useState('futsal');
+  const [categoria,   setCategoria]   = useState('global'); // solo pádel: oro | plata | global
   const [textoEquipos,setTextoEquipos]= useState('');
   const [tamGrupo,    setTamGrupo]    = useState(4);
   const [estado,      setEstado]      = useState('Inscripciones abiertas');
@@ -106,10 +112,18 @@ export default function CreadorTorneo({ onTorneoCreado }) {
 
   // ── Parsear equipos del textarea ──────────────────────────────────────────
   const parsearEquipos = () => {
-    return textoEquipos
+    const limpios = textoEquipos
       .split(/[\n,]+/)
       .map((e) => sanitizarEquipo(e))
       .filter(Boolean);
+    // Dedupe (case-insensitive): dentro de un torneo el nombre debe ser único
+    const vistos = new Set();
+    return limpios.filter((n) => {
+      const k = n.toLowerCase();
+      if (vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
   };
 
   // ── Generar preview (sin tocar la BD) ─────────────────────────────────────
@@ -126,7 +140,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
     const grupos         = repartirEnGrupos(mezclados, tamGrupo);
     const jornadasPorGrupo = grupos.map((g) => generarCalendarioJornadas(g));
     const horarioAutomatico = grupos.length === 2 && jornadasPorGrupo.every((j) => j.every((r) => r.length === 2));
-    const calendario = horarioAutomatico ? asignarHorarioDosGrupos(jornadasPorGrupo) : null;
+    const calendario = horarioAutomatico ? asignarHorarioDosGrupos(jornadasPorGrupo, deporte) : null;
 
     setPreview({ grupos, jornadasPorGrupo, horarioAutomatico, calendario });
     setFase('preview');
@@ -142,7 +156,13 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       // 1. Torneo
       const { data: torneo, error: e1 } = await supabase
         .from('torneos')
-        .insert([{ nombre: sanitizarNombre(nombre), deporte, estado }])
+        .insert([{
+          nombre: sanitizarNombre(nombre),
+          deporte,
+          estado,
+          formato: 'liga',
+          categoria: deporte === 'padel' ? categoria : null,
+        }])
         .select()
         .single();
       if (e1) throw new Error('Error creando torneo: ' + e1.message);
@@ -156,11 +176,11 @@ export default function CreadorTorneo({ onTorneoCreado }) {
         .select();
       if (e2) throw new Error('Error creando grupos: ' + e2.message);
 
-      // 3. Participantes (upsert por nombre único)
+      // 3. Participantes (con alcance de torneo; nombre único por torneo)
       const todosNombres = preview.grupos.flat();
       const { data: participantesDB, error: e3 } = await supabase
         .from('participantes')
-        .upsert(todosNombres.map((n) => ({ nombre: n })), { onConflict: 'nombre' })
+        .insert(todosNombres.map((n) => ({ nombre: n, torneo_id: tId })))
         .select();
       if (e3) throw new Error('Error creando participantes: ' + e3.message);
 
@@ -180,7 +200,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       //    Con 2 grupos y 2 partidos por jornada (grupos de 4 o 5 equipos) se asigna
       //    automáticamente hora y sede; en otro caso quedan en blanco para editarlas después.
       const partidos = preview.horarioAutomatico
-        ? asignarHorarioDosGrupos(preview.jornadasPorGrupo).map((p) => ({
+        ? asignarHorarioDosGrupos(preview.jornadasPorGrupo, deporte).map((p) => ({
             torneo_id:    tId,
             fase:         'grupos',
             jornada:      p.jornada,
@@ -219,7 +239,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
 
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = () => {
-    setNombre(''); setDeporte('futsal'); setTextoEquipos('');
+    setNombre(''); setDeporte('futsal'); setCategoria('global'); setTextoEquipos('');
     setTamGrupo(4); setEstado('Inscripciones abiertas');
     setFase('idle'); setPreview(null); setError('');
   };
@@ -300,6 +320,38 @@ export default function CreadorTorneo({ onTorneoCreado }) {
               </div>
             </div>
           </div>
+
+          {/* Categoría (solo pádel) */}
+          {deporte === 'padel' && (
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+                Categoría
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { v: 'global', l: '🌐 Global' },
+                  { v: 'oro',    l: '🏆 Oro'    },
+                  { v: 'plata',  l: '🥈 Plata'  },
+                ].map(({ v, l }) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setCategoria(v)}
+                    className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                      categoria === v
+                        ? 'bg-[#60A5FA] text-black border-[#60A5FA] shadow-lg'
+                        : 'bg-[#0f172a] text-slate-400 border-slate-700 hover:border-slate-500'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
+                Global: torneo mixto (oro + plata) con pocos participantes.
+              </p>
+            </div>
+          )}
 
           {/* Tamaño de grupo */}
           <div>
