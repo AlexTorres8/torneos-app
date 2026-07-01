@@ -49,8 +49,9 @@ export default function ExportarClasificacion() {
           .eq('torneo_id', torneoId),
         supabase
           .from('partidos')
-          .select('id, fase, estado, local_id, visitante_id, puntuacion_local, puntuacion_visitante')
-          .eq('torneo_id', torneoId),
+          .select('id, fase, jornada, hora, estado, local_id, visitante_id, puntuacion_local, puntuacion_visitante, local:participantes!local_id(id, nombre), visitante:participantes!visitante_id(id, nombre)')
+          .eq('torneo_id', torneoId)
+          .order('jornada'),
       ]);
 
       if (e1) throw new Error('Error cargando grupos: ' + e1.message);
@@ -84,25 +85,43 @@ export default function ExportarClasificacion() {
         lineas.push('');
       });
 
-      // Resultados recientes (últimos 5 finalizados)
-      const finalizados = partidos
-        .filter((p) => p.estado === 'finalizado' && p.fase === 'grupos')
-        .slice(-5);
+      // ── Resultados de grupos por jornada ──────────────────────────────────
+      const gruposFinalizados = partidos.filter(p => p.fase === 'grupos' && p.estado === 'finalizado');
+      if (gruposFinalizados.length > 0) {
+        lineas.push(`*── Resultados de Grupos ──*`);
+        const jornadas = [...new Set(gruposFinalizados.map(p => p.jornada))].sort((a, b) => a - b);
+        jornadas.forEach(j => {
+          lineas.push(`  _Jornada ${j}_`);
+          gruposFinalizados
+            .filter(p => p.jornada === j)
+            .forEach(p => {
+              const hora = p.hora ? `${p.hora} · ` : '';
+              lineas.push(`  ${hora}${p.local?.nombre ?? '?'} *${p.puntuacion_local}* - *${p.puntuacion_visitante}* ${p.visitante?.nombre ?? '?'}`);
+            });
+        });
+        lineas.push('');
+      }
 
-      if (finalizados.length > 0) {
-        const ids = [...new Set(finalizados.flatMap((p) => [p.local_id, p.visitante_id]))];
-        const { data: parts, error: e3 } = await supabase
-          .from('participantes')
-          .select('id, nombre')
-          .in('id', ids);
+      // ── Fase final ────────────────────────────────────────────────────────
+      const ORDEN_FASES = ['playoffs', 'cuartos', 'semis', 'final'];
+      const LABEL_FASES = { playoffs: 'Ronda Previa', cuartos: 'Cuartos de Final', semis: 'Semifinales', final: 'Gran Final' };
+      const fasesFinal = ORDEN_FASES.filter(f => partidos.some(p => p.fase === f));
 
-        if (e3) throw new Error('Error cargando participantes: ' + e3.message);
-
-        const nombrePor = (id) => parts?.find((p) => p.id === id)?.nombre || '?';
-
-        lineas.push(`*── Últimos resultados ──*`);
-        finalizados.forEach((p) => {
-          lineas.push(`${nombrePor(p.local_id)} ${p.puntuacion_local} - ${p.puntuacion_visitante} ${nombrePor(p.visitante_id)}`);
+      if (fasesFinal.length > 0) {
+        lineas.push(`*── Fase Final ──*`);
+        fasesFinal.forEach(fase => {
+          lineas.push(`  _${LABEL_FASES[fase]}_`);
+          partidos
+            .filter(p => p.fase === fase)
+            .sort((a, b) => a.jornada - b.jornada)
+            .forEach(p => {
+              if (p.estado === 'finalizado') {
+                const ganador = p.puntuacion_local > p.puntuacion_visitante ? p.local?.nombre : p.visitante?.nombre;
+                lineas.push(`  ${p.local?.nombre ?? '?'} *${p.puntuacion_local}* - *${p.puntuacion_visitante}* ${p.visitante?.nombre ?? '?'}  ✅ ${ganador}`);
+              } else {
+                lineas.push(`  ${p.local?.nombre ?? 'Por definir'} vs ${p.visitante?.nombre ?? 'Por definir'}`);
+              }
+            });
         });
         lineas.push('');
       }

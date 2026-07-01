@@ -8,6 +8,25 @@ import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
 import { calcularStats }     from '../../hooks/useCalcStats';
 
+function ordenarFutsal(equipos, partidos) {
+  return [...equipos].sort((a, b) => {
+    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
+    const pd = partidos.find(p =>
+      p.fase === 'grupos' && p.estado === 'finalizado' &&
+      ((p.local_id === a.id && p.visitante_id === b.id) ||
+       (p.local_id === b.id && p.visitante_id === a.id))
+    );
+    if (pd) {
+      const esALocal = pd.local_id === a.id;
+      const gA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
+      const gB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
+      if (gA !== gB) return gB - gA;
+    }
+    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
+    return b.stats.gf - a.stats.gf;
+  });
+}
+
 const ESQ_CUARTOS = [
   { id:'c1', hora:'21:00', ubicacion:'Pista Ext.', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'4º Grupo B'} },
   { id:'c2', hora:'21:00', ubicacion:'Pabellón',   estado:'pendiente', local:{nombre:'2º Grupo B'}, visitante:{nombre:'3º Grupo A'} },
@@ -30,9 +49,10 @@ export default function CuadroFutsal() {
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
       ...g,
-      equipos: g.grupo_participantes
-        .map((gp) => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'futsal') }))
-        .sort((a, b) => b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf),
+      equipos: ordenarFutsal(
+        g.grupo_participantes.map((gp) => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'futsal') })),
+        partidos
+      ),
     })),
     [grupos, partidos]
   );

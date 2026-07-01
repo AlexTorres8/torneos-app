@@ -21,10 +21,23 @@ function ordenarGrupoPadel(equipos, partidos) {
   });
 }
 
-function ordenarGrupoFutsal(equipos) {
-  return [...equipos].sort((a, b) =>
-    b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf
-  );
+function ordenarGrupoFutsal(equipos, partidos) {
+  return [...equipos].sort((a, b) => {
+    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
+    const pd = partidos.find(p =>
+      p.fase === 'grupos' && p.estado === 'finalizado' &&
+      ((p.local_id === a.id && p.visitante_id === b.id) ||
+       (p.local_id === b.id && p.visitante_id === a.id))
+    );
+    if (pd) {
+      const esALocal = pd.local_id === a.id;
+      const gA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
+      const gB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
+      if (gA !== gB) return gB - gA;
+    }
+    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
+    return b.stats.gf - a.stats.gf;
+  });
 }
 
 /** Devuelve el equipo ganador de un partido finalizado, o null si hay empate. */
@@ -54,8 +67,8 @@ function _generarDesdeFaseAnterior(fase, origen, torneoId) {
     const p2 = origen[i + 1];
     const g1 = getGanador(p1);
     const g2 = getGanador(p2);
-    if (!g1) throw new Error(`Sin ganador claro en el partido ${p1.jornada} de la fase anterior (¿empate?).`);
-    if (!g2) throw new Error(`Sin ganador claro en el partido ${p2.jornada} de la fase anterior (¿empate?).`);
+    if (!g1) throw new Error(`Empate en ${p1.local?.nombre ?? '?'} vs ${p1.visitante?.nombre ?? '?'}: no hay ganador. Corrige el resultado antes de generar la siguiente fase.`);
+    if (!g2) throw new Error(`Empate en ${p2.local?.nombre ?? '?'} vs ${p2.visitante?.nombre ?? '?'}: no hay ganador. Corrige el resultado antes de generar la siguiente fase.`);
     pares.push({ etiq: `${g1.nombre} vs ${g2.nombre}`, local: g1, visitante: g2 });
   }
 
@@ -115,7 +128,10 @@ export async function calcularFaseAuto(torneoId, deporte) {
   if (semis.length > 0) {
     if (finales.length > 0) throw new Error('La final ya existe en este torneo.');
     const pendientes = semis.filter(p => p.estado !== 'finalizado');
-    if (pendientes.length > 0) throw new Error(`Faltan ${pendientes.length} semifinal(es) por finalizar.`);
+    if (pendientes.length > 0) {
+      const desc = pendientes.map(p => `${p.local?.nombre ?? '?'} vs ${p.visitante?.nombre ?? '?'}`).join(' · ');
+      throw new Error(`Faltan ${pendientes.length} semifinal(es) por finalizar: ${desc}`);
+    }
     return _generarDesdeFaseAnterior('final', semis, torneoId);
   }
 
@@ -123,7 +139,10 @@ export async function calcularFaseAuto(torneoId, deporte) {
   if (cuartos.length > 0) {
     if (semis.length > 0) throw new Error('Las semifinales ya existen en este torneo.');
     const pendientes = cuartos.filter(p => p.estado !== 'finalizado');
-    if (pendientes.length > 0) throw new Error(`Faltan ${pendientes.length} cuarto(s) de final por finalizar.`);
+    if (pendientes.length > 0) {
+      const desc = pendientes.map(p => `${p.local?.nombre ?? '?'} vs ${p.visitante?.nombre ?? '?'}`).join(' · ');
+      throw new Error(`Faltan ${pendientes.length} cuarto(s) de final por finalizar: ${desc}`);
+    }
     return _generarDesdeFaseAnterior('semis', cuartos, torneoId);
   }
 
@@ -131,7 +150,10 @@ export async function calcularFaseAuto(torneoId, deporte) {
   if (playoffs.length > 0) {
     if (cuartos.length > 0) throw new Error('Los cuartos de final ya existen en este torneo.');
     const pendientes = playoffs.filter(p => p.estado !== 'finalizado');
-    if (pendientes.length > 0) throw new Error(`Faltan ${pendientes.length} partido(s) de la ronda previa por finalizar.`);
+    if (pendientes.length > 0) {
+      const desc = pendientes.map(p => `${p.local?.nombre ?? '?'} vs ${p.visitante?.nombre ?? '?'}`).join(' · ');
+      throw new Error(`Faltan ${pendientes.length} partido(s) de la ronda previa por finalizar: ${desc}`);
+    }
     return _generarDesdeFaseAnterior('cuartos', playoffs, torneoId);
   }
 
@@ -143,20 +165,19 @@ export async function calcularFaseAuto(torneoId, deporte) {
     throw new Error('No hay partidos de grupos finalizados todavía.');
   }
 
-  const clasificaciones = grupos
-    .sort((a, b) => a.nombre.localeCompare(b.nombre))
-    .map(g => {
-      const conStats = g.grupo_participantes.map(gp => ({
-        ...gp.participantes,
-        stats: calcularStats(todos, gp.participantes.id, deporte),
-      }));
-      return {
-        nombre: g.nombre,
-        equipos: deporte === 'padel'
-          ? ordenarGrupoPadel(conStats, todos)
-          : ordenarGrupoFutsal(conStats),
-      };
-    });
+  // grupos ya viene ordenado por nombre desde Supabase (.order('nombre'))
+  const clasificaciones = grupos.map(g => {
+    const conStats = g.grupo_participantes.map(gp => ({
+      ...gp.participantes,
+      stats: calcularStats(todos, gp.participantes.id, deporte),
+    }));
+    return {
+      nombre: g.nombre,
+      equipos: deporte === 'padel'
+        ? ordenarGrupoPadel(conStats, todos)
+        : ordenarGrupoFutsal(conStats, todos),
+    };
+  });
 
   const nGrupos = clasificaciones.length;
   let fase, pares;

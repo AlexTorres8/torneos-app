@@ -74,6 +74,20 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
   };
 
   const guardarEdicion = async (id) => {
+    if (editHora && editUbicacion) {
+      const actual = partidos.find(p => p.id === id);
+      const conflicto = partidos.find(p =>
+        p.id !== id &&
+        p.torneo_id === actual?.torneo_id &&
+        p.jornada  === actual?.jornada &&
+        p.hora     === editHora &&
+        p.ubicacion === editUbicacion
+      );
+      if (conflicto) {
+        setError(id, `Conflicto: ${conflicto.local?.nombre} vs ${conflicto.visitante?.nombre} ya ocupa ${editHora} en ${editUbicacion} (Jornada ${conflicto.jornada}).`);
+        return;
+      }
+    }
     const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null }).eq('id', id);
     if (error) { setError(id, 'Error al guardar.'); return; }
     setEditando(null);

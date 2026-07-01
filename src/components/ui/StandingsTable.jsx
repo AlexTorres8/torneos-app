@@ -123,10 +123,15 @@ export function StandingsTable({ grupo, equipos, variant = 'futsal' }) {
         </table>
       </div>
 
-      {/* Leyenda desempate para pádel */}
+      {/* Leyenda desempate */}
       {variant === 'padel' && (
         <div className="px-4 py-2 border-t border-slate-800/60 text-[9px] text-slate-600 font-bold uppercase tracking-widest">
           Desempate: 1. Pts · 2. Partido directo · 3. Set avg (SF/SC) · 4. Juego avg (JF/JC)
+        </div>
+      )}
+      {(variant === 'futsal' || variant === 'futsal24h') && (
+        <div className="px-4 py-2 border-t border-slate-800/60 text-[9px] text-slate-600 font-bold uppercase tracking-widest">
+          Desempate: 1. Pts · 2. Partido directo · 3. Dif. goles · 4. Goles a favor
         </div>
       )}
     </div>
