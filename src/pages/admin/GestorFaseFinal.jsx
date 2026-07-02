@@ -24,6 +24,7 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
   const [visitanteId,   setVisitanteId]   = useState('');
   const [hora,          setHora]          = useState('');
   const [ubicacion,     setUbicacion]     = useState('');
+  const [fecha,         setFecha]         = useState('');
   const [estado,        setEstado]        = useState('idle');
   const [errorMsg,      setErrorMsg]      = useState('');
   const [creados,       setCreados]       = useState([]);
@@ -51,7 +52,7 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
 
     const torneo = torneos.find((t) => t.id === torneoId);
     setTorneoDeporte(torneo?.deporte || 'futsal');
-    setHora(''); setUbicacion('');
+    setHora(''); setUbicacion(''); setFecha('');
     setAutoFase('idle'); setAutoPreview(null); setAutoError('');
 
     async function cargarParticipantes() {
@@ -182,7 +183,7 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
 
     const { data, error } = await supabase
       .from('partidos')
-      .insert([{ torneo_id: torneoId, fase, jornada, hora: hora || null, ubicacion: ubicacion || null, estado: 'pendiente', local_id: localId, visitante_id: visitanteId }])
+      .insert([{ torneo_id: torneoId, fase, jornada, hora: hora || null, ubicacion: ubicacion || null, fecha: fecha || null, estado: 'pendiente', local_id: localId, visitante_id: visitanteId }])
       .select('id, fase, hora, ubicacion, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre), torneo:torneos(nombre)')
       .single();
 
@@ -190,7 +191,7 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
 
     setCreados((prev) => [data, ...prev]);
     setEstado('ok');
-    setLocalId(''); setVisitanteId(''); setHora(''); setUbicacion('');
+    setLocalId(''); setVisitanteId(''); setHora(''); setUbicacion(''); setFecha('');
     onPartidoCreado?.();
     setTimeout(() => setEstado('idle'), 2000);
   };
@@ -363,9 +364,11 @@ export default function GestorFaseFinal({ onPartidoCreado }) {
         <HoraUbicacionPicker
           hora={hora}
           ubicacion={ubicacion}
+          fecha={fecha}
           deporte={torneoDeporte}
           onHora={setHora}
           onUbicacion={setUbicacion}
+          onFecha={setFecha}
         />
 
         {errorMsg && (

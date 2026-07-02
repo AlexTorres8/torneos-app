@@ -6,6 +6,7 @@ import { BracketConLineas }  from '../../components/ui/BracketConLineas';
 import { StandingsTable }    from '../../components/ui/StandingsTable';
 import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
+import { SancionesTorneo }   from '../../components/ui/SancionesTorneo';
 import { calcularStats }     from '../../hooks/useCalcStats';
 import { ordenarClasificacion } from '../../lib/clasificacion';
 
@@ -183,6 +184,9 @@ export default function CuadroFutsal24H() {
             </div>
           </section>
         )}
+
+        {/* Sanciones */}
+        <SancionesTorneo torneoId={torneoId} accent="amber" />
 
         {/* Fase final */}
         <section>
