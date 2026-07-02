@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Pencil, X, Save, AlertCircle, Loader2, ChevronDown } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { HoraUbicacionPicker } from '../../components/ui/HoraUbicacionPicker';
+import { fechaCorta } from '../../lib/fecha';
 
 const FASE_LABEL = {
   playoffs: 'Ronda Previa',
@@ -29,6 +30,7 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
   const [editVisit,   setEditVisit]   = useState('');
   const [editHora,    setEditHora]    = useState('');
   const [editUbic,    setEditUbic]    = useState('');
+  const [editFecha,   setEditFecha]   = useState('');
   const [guardando,   setGuardando]   = useState(null);
   const [errores,     setErrores]     = useState({});
 
@@ -37,7 +39,7 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
     setCargando(true);
     let q = supabase
       .from('partidos')
-      .select('id, fase, jornada, hora, ubicacion, estado, local_id, visitante_id, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)')
+      .select('id, fase, jornada, hora, fecha, ubicacion, estado, local_id, visitante_id, local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre)')
       .eq('torneo_id', torneoId)
       .neq('fase', 'grupos')
       .order('jornada');
@@ -57,6 +59,7 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
     setEditVisit(p.visitante_id || '');
     setEditHora(p.hora         || '');
     setEditUbic(p.ubicacion    || '');
+    setEditFecha(p.fecha       || '');
     limpiarError(p.id);
   };
 
@@ -79,6 +82,7 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
         visitante_id: editVisit,
         hora:         editHora || null,
         ubicacion:    editUbic || null,
+        fecha:        editFecha || null,
       })
       .eq('id', p.id);
 
@@ -148,6 +152,7 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
                         {p.visitante?.nombre ?? <span className="text-slate-600 italic">Sin asignar</span>}
                       </p>
                       <p className="text-slate-600 text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
+                        {p.fecha && <><span>{fechaCorta(p.fecha)}</span><span>·</span></>}
                         <span>{p.hora || '—'}</span>
                         <span>·</span>
                         <span>{p.ubicacion || '—'}</span>
@@ -210,9 +215,11 @@ export default function EditarFaseFinal({ torneoId, torneoDeporte, participantes
                       <HoraUbicacionPicker
                         hora={editHora}
                         ubicacion={editUbic}
+                        fecha={editFecha}
                         deporte={torneoDeporte}
                         onHora={setEditHora}
                         onUbicacion={setEditUbic}
+                        onFecha={setEditFecha}
                       />
 
                       {/* Error */}

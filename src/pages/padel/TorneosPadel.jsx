@@ -8,7 +8,7 @@ export default function TorneosPadel() {
   const [torneos,     setTorneos]     = useState([]);
   const [cargando,    setCargando]    = useState(true);
   const [error,       setError]       = useState('');
-  const [cat,         setCat]         = useState('Oro');
+  const [cat,         setCat]         = useState('global'); // global | oro | plata
   const [verNormativa,setVerNormativa]= useState(false);
 
   const cargar = async () => {
@@ -32,8 +32,12 @@ export default function TorneosPadel() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargar(); }, []);
 
+  // Filtra por la columna `categoria`; si un torneo antiguo no la tuviera,
+  // recae en detectar la categoría por el nombre (compatibilidad).
   const mostrar = torneos.filter((t) =>
-    t.nombre.toLowerCase().includes(cat.toLowerCase())
+    t.categoria
+      ? t.categoria === cat
+      : t.nombre.toLowerCase().includes(cat)
   );
 
   return (
@@ -51,20 +55,28 @@ export default function TorneosPadel() {
           {/* Tabs categoría */}
           <div className="flex bg-slate-800/80 p-1.5 rounded-xl mb-6 border border-slate-700 shadow-inner">
             <button
-              onClick={() => setCat('Oro')}
+              onClick={() => setCat('global')}
               className={`flex-1 py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-lg transition-all ${
-                cat === 'Oro' ? 'bg-amber-500 text-black shadow-lg scale-[1.02]' : 'text-slate-400 hover:text-white'
+                cat === 'global' ? 'bg-[#60A5FA] text-black shadow-lg scale-[1.02]' : 'text-slate-400 hover:text-white'
               }`}
             >
-              🏆 Categoría Oro
+              🌐 Global
             </button>
             <button
-              onClick={() => setCat('Plata')}
+              onClick={() => setCat('oro')}
               className={`flex-1 py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-lg transition-all ${
-                cat === 'Plata' ? 'bg-slate-300 text-black shadow-lg scale-[1.02]' : 'text-slate-400 hover:text-white'
+                cat === 'oro' ? 'bg-amber-500 text-black shadow-lg scale-[1.02]' : 'text-slate-400 hover:text-white'
               }`}
             >
-              🥈 Categoría Plata
+              🏆 Oro
+            </button>
+            <button
+              onClick={() => setCat('plata')}
+              className={`flex-1 py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-lg transition-all ${
+                cat === 'plata' ? 'bg-slate-300 text-black shadow-lg scale-[1.02]' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🥈 Plata
             </button>
           </div>
 

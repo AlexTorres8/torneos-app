@@ -24,8 +24,10 @@ export function HoraUbicacionPicker({
   hora        = '',
   ubicacion   = '',
   deporte     = 'futsal',
+  fecha,          // 'YYYY-MM-DD' | undefined
   onHora,
   onUbicacion,
+  onFecha,        // (fecha: string) => void  — si se pasa, muestra selector de fecha
   compact     = false,
 }) {
   // Parsear hora actual
@@ -114,7 +116,35 @@ export function HoraUbicacionPicker({
 
   // ── Versión completa (para formularios) ──────────────────────────────
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-4">
+
+      {/* Fecha (opcional) */}
+      {onFecha && (
+        <div>
+          <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+            Fecha <span className="text-slate-600 normal-case font-normal">(opcional)</span>
+          </label>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={fecha || ''}
+              onChange={(e) => onFecha(e.target.value)}
+              className="flex-1 bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 text-white font-bold focus:border-[#60A5FA] outline-none transition-colors [color-scheme:dark]"
+            />
+            {fecha && (
+              <button
+                type="button"
+                onClick={() => onFecha('')}
+                className="text-[10px] text-slate-500 hover:text-red-400 transition-colors font-bold uppercase tracking-widest"
+              >
+                limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
 
       {/* Hora */}
       <div>
@@ -201,6 +231,7 @@ export function HoraUbicacionPicker({
         )}
       </div>
 
+      </div>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Copy, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Copy, CheckCircle2, MessageCircle, FileText } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { calcularStats } from '../../hooks/useCalcStats';
+import { ordenarClasificacion } from '../../lib/clasificacion';
 
 /**
  * Genera un texto con la clasificación de un torneo
@@ -16,6 +17,7 @@ export default function ExportarClasificacion() {
   const [texto,     setTexto]     = useState('');
   const [copiado,   setCopiado]   = useState(false);
   const [cargando,  setCargando]  = useState(false);
+  const [cargandoPdf, setCargandoPdf] = useState(false);
   const [errorMsg,  setErrorMsg]  = useState('');
 
   // ── CORRECCIÓN: useEffect (no useState) para cargar torneos al montar ──
@@ -65,12 +67,14 @@ export default function ExportarClasificacion() {
       lineas.push(`📊 Clasificación\n`);
 
       grupos.forEach((g) => {
-        const equipos = g.grupo_participantes
-          .map((gp) => ({
+        const equipos = ordenarClasificacion(
+          g.grupo_participantes.map((gp) => ({
             ...gp.participantes,
             stats: calcularStats(partidos, gp.participantes.id, deporte),
-          }))
-          .sort((a, b) => b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf);
+          })),
+          partidos,
+          deporte
+        );
 
         lineas.push(`*── ${g.nombre} ──*`);
 
@@ -137,6 +141,41 @@ export default function ExportarClasificacion() {
     }
   };
 
+  const descargarPdf = async () => {
+    if (!torneoId) return;
+    setCargandoPdf(true);
+    setErrorMsg('');
+    try {
+      const torneo = torneos.find((t) => t.id === torneoId);
+      const [{ data: grupos, error: e1 }, { data: partidos, error: e2 }, { data: sanciones }] = await Promise.all([
+        supabase
+          .from('grupos')
+          .select('id, nombre, grupo_participantes(participantes(id, nombre))')
+          .eq('torneo_id', torneoId),
+        supabase
+          .from('partidos')
+          .select('id, fase, jornada, hora, fecha, ubicacion, estado, local_id, visitante_id, puntuacion_local, puntuacion_visitante, detalle_resultado, local:participantes!local_id(id, nombre), visitante:participantes!visitante_id(id, nombre)')
+          .eq('torneo_id', torneoId)
+          .order('jornada'),
+        supabase
+          .from('sanciones')
+          .select('jugador, tipo, partidos_sancion, motivo, participantes(nombre)')
+          .eq('torneo_id', torneoId)
+          .order('created_at', { ascending: false }),
+      ]);
+      if (e1) throw new Error('Error cargando grupos: ' + e1.message);
+      if (e2) throw new Error('Error cargando partidos: ' + e2.message);
+      // Carga diferida de jsPDF: solo cuando se pulsa "PDF".
+      const { generarPdfTorneo } = await import('../../lib/pdfTorneo');
+      generarPdfTorneo({ torneo, grupos: grupos || [], partidos: partidos || [], sanciones: sanciones || [] });
+    } catch (err) {
+      console.error('[ExportarClasificacion] PDF', err);
+      setErrorMsg(err.message || 'Error generando el PDF.');
+    } finally {
+      setCargandoPdf(false);
+    }
+  };
+
   const copiar = async () => {
     if (!texto) return;
     await navigator.clipboard.writeText(texto);
@@ -171,7 +210,17 @@ export default function ExportarClasificacion() {
             {cargando
               ? <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
               : <MessageCircle size={16} />}
-            Generar
+            WhatsApp
+          </button>
+          <button
+            onClick={descargarPdf}
+            disabled={!torneoId || cargandoPdf}
+            className="bg-red-500/90 hover:bg-red-500 disabled:opacity-40 text-white font-black uppercase tracking-widest px-5 py-3 rounded-xl transition-all flex items-center justify-center gap-2 text-xs whitespace-nowrap"
+          >
+            {cargandoPdf
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <FileText size={16} />}
+            PDF
           </button>
         </div>
       </div>

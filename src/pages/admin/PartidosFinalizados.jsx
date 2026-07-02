@@ -4,6 +4,7 @@ import { supabase } from '../../supabase';
 import { HoraUbicacionPicker } from '../../components/ui/HoraUbicacionPicker';
 import { validarResultadoPadel } from '../../lib/validarPadel';
 import { sanitizarDetalle } from '../../lib/sanitize';
+import { fechaCorta } from '../../lib/fecha';
 
 export default function PartidosFinalizados({ torneos }) {
   const [partidos,     setPartidos]     = useState([]);
@@ -15,6 +16,7 @@ export default function PartidosFinalizados({ torneos }) {
   const [editando,     setEditando]     = useState(null); // id del partido en edición
   const [editHora,     setEditHora]     = useState('');
   const [editUbic,     setEditUbic]     = useState('');
+  const [editFecha,    setEditFecha]    = useState('');
   const [editL,        setEditL]        = useState('');
   const [editV,        setEditV]        = useState('');
   const [editDetalle,  setEditDetalle]  = useState('');
@@ -28,7 +30,7 @@ export default function PartidosFinalizados({ torneos }) {
     let q = supabase
       .from('partidos')
       .select(
-        'id, fase, jornada, hora, ubicacion, ' +
+        'id, fase, jornada, hora, fecha, ubicacion, ' +
         'puntuacion_local, puntuacion_visitante, detalle_resultado, torneo_id, ' +
         'torneo:torneos(nombre, deporte), ' +
         'local:participantes!local_id(nombre), ' +
@@ -60,6 +62,7 @@ export default function PartidosFinalizados({ torneos }) {
     setEditando(p.id);
     setEditHora(p.hora || '');
     setEditUbic(p.ubicacion || '');
+    setEditFecha(p.fecha || '');
     setEditL(String(p.puntuacion_local ?? ''));
     setEditV(String(p.puntuacion_visitante ?? ''));
     setEditDetalle(p.detalle_resultado || '');
@@ -91,6 +94,7 @@ export default function PartidosFinalizados({ torneos }) {
     const payload = {
       hora:               editHora  || null,
       ubicacion:          editUbic  || null,
+      fecha:              editFecha || null,
       puntuacion_local:   lNum,
       puntuacion_visitante: vNum,
       detalle_resultado:  esPadel ? (detalle || null) : null,
@@ -192,8 +196,11 @@ export default function PartidosFinalizados({ torneos }) {
                       <span className="text-[9px] font-black uppercase tracking-widest text-[#60A5FA] bg-[#60A5FA]/10 px-2 py-0.5 rounded">
                         {faseLabel(p.fase)}
                       </span>
+                      {p.fecha && (
+                        <span className="text-[9px] text-slate-500 font-bold">{fechaCorta(p.fecha)}</span>
+                      )}
                       {p.hora && (
-                        <span className="text-[9px] text-slate-500 font-bold">{p.hora}</span>
+                        <span className="text-[9px] text-slate-500 font-bold">· {p.hora}</span>
                       )}
                       {p.ubicacion && (
                         <span className="text-[9px] text-slate-500 font-bold">· {p.ubicacion}</span>
@@ -245,9 +252,11 @@ export default function PartidosFinalizados({ torneos }) {
                     <HoraUbicacionPicker
                       hora={editHora}
                       ubicacion={editUbic}
+                      fecha={editFecha}
                       deporte={p.torneo?.deporte ?? 'futsal'}
                       onHora={setEditHora}
                       onUbicacion={setEditUbic}
+                      onFecha={setEditFecha}
                     />
 
                     {/* Resultado */}

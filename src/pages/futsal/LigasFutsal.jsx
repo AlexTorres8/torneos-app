@@ -4,11 +4,13 @@ import { Target, Zap, AlertCircle, RefreshCw } from 'lucide-react';
 import { supabase } from '../../supabase';
 import { SEO } from '../../components/seo/SEO';
 import { Skeleton } from '../../components/ui/Skeleton';
+import NormativaFutsal from './NormativaFutsal';
 
 export default function LigasFutsal() {
-  const [torneos,  setTorneos]  = useState([]);
-  const [cargando, setCargando] = useState(true);
-  const [error,    setError]    = useState('');
+  const [torneos,      setTorneos]      = useState([]);
+  const [cargando,     setCargando]     = useState(true);
+  const [error,        setError]        = useState('');
+  const [verNormativa, setVerNormativa] = useState(false);
 
   const cargar = async () => {
     setCargando(true);
@@ -50,6 +52,20 @@ export default function LigasFutsal() {
               <Target className="text-[#60A5FA]" size={36} /> Competiciones Futsal
             </h2>
 
+            {/* Normativa desplegable */}
+            <div className="mb-8 bg-[#0f172a]/80 border border-slate-700 rounded-xl overflow-hidden shadow-lg">
+              <button
+                onClick={() => setVerNormativa(!verNormativa)}
+                className="w-full flex justify-between items-center p-4 hover:bg-slate-800/80 transition-colors text-slate-300 hover:text-white"
+              >
+                <span className="font-bold uppercase tracking-widest text-sm md:text-base flex items-center gap-2">
+                  📜 Normativa Oficial del Torneo
+                </span>
+                <span className="text-2xl font-black text-[#60A5FA]">{verNormativa ? '−' : '+'}</span>
+              </button>
+              {verNormativa && <NormativaFutsal />}
+            </div>
+
             {cargando && <Skeleton.TorneosLista items={3} />}
 
             {!cargando && error && (
@@ -72,7 +88,11 @@ export default function LigasFutsal() {
             {!cargando && !error && torneos.length > 0 && (
               <div className="grid gap-5">
                 {torneos.map((torneo) => {
-                  const es24h = torneo.nombre.toLowerCase().includes('24');
+                  // Preferimos el campo `formato`; si faltara (torneo antiguo),
+                  // recaemos en detectar "24" en el nombre.
+                  const es24h = torneo.formato
+                    ? torneo.formato === '24h'
+                    : torneo.nombre.toLowerCase().includes('24');
                   return (
                     <div
                       key={torneo.id}

@@ -1,4 +1,5 @@
 import { MapPin } from 'lucide-react';
+import { fechaCorta } from '../../lib/fecha';
 
 /**
  * Tarjeta de partido reutilizable.
@@ -15,7 +16,7 @@ function MatchNodeFutsal({ p }) {
   return (
     <div className="bg-[#1e293b] border border-slate-800 rounded-lg p-3 w-52 shadow-2xl relative">
       <div className="text-[9px] font-black uppercase mb-2 flex justify-between items-center border-b border-slate-800/80 pb-1.5 text-slate-500">
-        <span>{p?.hora || ''} {p?.ubicacion || 'Por definir'}</span>
+        <span>{fechaCorta(p?.fecha) && `${fechaCorta(p?.fecha)} · `}{p?.hora || ''} {p?.ubicacion || 'Por definir'}</span>
         <span className={p?.estado === 'finalizado' ? 'text-emerald-500' : ''}>
           {p?.estado === 'pendiente' ? 'vs' : p?.estado === 'finalizado' ? 'FIN' : '---'}
         </span>
@@ -41,7 +42,7 @@ function MatchNode24H({ p }) {
       <div className="text-[10px] font-black uppercase mb-3 flex justify-between items-center border-b border-slate-800/80 pb-2 text-slate-400">
         <span className="flex items-center gap-1.5">
           <MapPin size={12} className="text-amber-500" />
-          {p?.ubicacion || 'Por definir'}
+          {fechaCorta(p?.fecha) && `${fechaCorta(p?.fecha)} · `}{p?.ubicacion || 'Por definir'}
         </span>
         <span className={p?.estado === 'finalizado' ? 'text-emerald-500 font-black' : 'text-slate-500'}>
           {p?.estado === 'pendiente' ? p?.hora || 'vs' : p?.estado === 'finalizado' ? 'FIN' : '---'}
@@ -81,7 +82,7 @@ function MatchNodePadel({ p }) {
   return (
     <div className="bg-[#0f172a] border border-slate-700/50 rounded-lg shadow-2xl relative w-64 overflow-hidden flex flex-col transition-all hover:border-slate-500">
       <div className="text-[9px] font-black uppercase flex justify-between items-center bg-slate-800/80 px-3 py-1.5 text-slate-400">
-        <span>{p?.hora || ''} {p?.ubicacion || 'Por definir'}</span>
+        <span>{fechaCorta(p?.fecha) && `${fechaCorta(p?.fecha)} · `}{p?.hora || ''} {p?.ubicacion || 'Por definir'}</span>
         <span className={p?.estado === 'finalizado' ? 'text-emerald-500' : ''}>
           {p?.estado === 'pendiente' ? 'vs' : p?.estado === 'finalizado' ? 'FIN' : '---'}
         </span>

@@ -7,6 +7,18 @@ import { StandingsTable }    from '../../components/ui/StandingsTable';
 import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
 import { calcularStats }     from '../../hooks/useCalcStats';
+import { ordenarClasificacion } from '../../lib/clasificacion';
+import { fechaDiaMes }       from '../../lib/fecha';
+
+/** Etiqueta de fecha de una jornada: una fecha, o rango si hay varias. */
+function fechaJornada(partidos, jornada) {
+  const fechas = [...new Set(
+    partidos.filter(p => p.fase === 'grupos' && p.jornada === jornada && p.fecha).map(p => p.fecha)
+  )].sort();
+  if (fechas.length === 0) return '';
+  if (fechas.length === 1) return fechaDiaMes(fechas[0]);
+  return `${fechaDiaMes(fechas[0])} – ${fechaDiaMes(fechas[fechas.length - 1])}`;
+}
 
 const ESQ_PLAYOFFS = [
   { id:'p1', hora:'20:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo C'} },
@@ -26,25 +38,6 @@ const ESQ_SEMIS = [
 ];
 const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
 
-function ordenarPadel(equipos, partidos) {
-  return [...equipos].sort((a, b) => {
-    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
-    const pd = partidos.find(p =>
-      p.fase === 'grupos' && p.estado === 'finalizado' &&
-      ((p.local_id === a.id && p.visitante_id === b.id) || (p.local_id === b.id && p.visitante_id === a.id))
-    );
-    if (pd) {
-      const esALocal = pd.local_id === a.id;
-      const sA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
-      const sB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
-      if (sA !== sB) return sB - sA;
-    }
-    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
-    if ((b.stats.jdif ?? 0) !== (a.stats.jdif ?? 0)) return (b.stats.jdif ?? 0) - (a.stats.jdif ?? 0);
-    return b.stats.gf - a.stats.gf;
-  });
-}
-
 const NOMBRES_JORNADAS = { 1:'Jornada 1', 2:'Jornada 2', 3:'Jornada 3', 4:'Jornada 4', 5:'Jornada 5', 6:'Jornada 6' };
 
 export default function CuadroPadel() {
@@ -55,9 +48,10 @@ export default function CuadroPadel() {
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
       ...g,
-      equipos: ordenarPadel(
+      equipos: ordenarClasificacion(
         g.grupo_participantes.map((gp) => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'padel') })),
-        partidos
+        partidos,
+        'padel'
       ),
     })),
     [grupos, partidos]
@@ -135,6 +129,9 @@ export default function CuadroPadel() {
                 <div key={jornada} className="bg-[#1e293b]/50 rounded-xl border border-slate-800 p-6 shadow-md">
                   <h3 className="text-blue-400 font-black uppercase tracking-widest text-sm mb-6 flex items-center gap-2 border-b border-slate-700/50 pb-3">
                     <span>🕒</span> {NOMBRES_JORNADAS[jornada] || `Jornada ${jornada}`}
+                    {fechaJornada(partidos, jornada) && (
+                      <span className="text-slate-500 font-bold normal-case tracking-normal">· {fechaJornada(partidos, jornada)}</span>
+                    )}
                   </h3>
                   <div className="flex flex-wrap gap-5">
                     {partidos

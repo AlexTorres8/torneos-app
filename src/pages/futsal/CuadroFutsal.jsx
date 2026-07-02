@@ -6,25 +6,19 @@ import { BracketConLineas }  from '../../components/ui/BracketConLineas';
 import { StandingsTable }    from '../../components/ui/StandingsTable';
 import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
+import { SancionesTorneo }   from '../../components/ui/SancionesTorneo';
 import { calcularStats }     from '../../hooks/useCalcStats';
+import { ordenarClasificacion } from '../../lib/clasificacion';
+import { fechaDiaMes }       from '../../lib/fecha';
 
-function ordenarFutsal(equipos, partidos) {
-  return [...equipos].sort((a, b) => {
-    if (b.stats.pts !== a.stats.pts) return b.stats.pts - a.stats.pts;
-    const pd = partidos.find(p =>
-      p.fase === 'grupos' && p.estado === 'finalizado' &&
-      ((p.local_id === a.id && p.visitante_id === b.id) ||
-       (p.local_id === b.id && p.visitante_id === a.id))
-    );
-    if (pd) {
-      const esALocal = pd.local_id === a.id;
-      const gA = esALocal ? pd.puntuacion_local : pd.puntuacion_visitante;
-      const gB = esALocal ? pd.puntuacion_visitante : pd.puntuacion_local;
-      if (gA !== gB) return gB - gA;
-    }
-    if (b.stats.dif !== a.stats.dif) return b.stats.dif - a.stats.dif;
-    return b.stats.gf - a.stats.gf;
-  });
+/** Etiqueta de fecha de una jornada: una fecha, o rango si hay varias. */
+function fechaJornada(partidos, jornada) {
+  const fechas = [...new Set(
+    partidos.filter(p => p.fase === 'grupos' && p.jornada === jornada && p.fecha).map(p => p.fecha)
+  )].sort();
+  if (fechas.length === 0) return '';
+  if (fechas.length === 1) return fechaDiaMes(fechas[0]);
+  return `${fechaDiaMes(fechas[0])} – ${fechaDiaMes(fechas[fechas.length - 1])}`;
 }
 
 const ESQ_CUARTOS = [
@@ -49,9 +43,10 @@ export default function CuadroFutsal() {
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
       ...g,
-      equipos: ordenarFutsal(
+      equipos: ordenarClasificacion(
         g.grupo_participantes.map((gp) => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'futsal') })),
-        partidos
+        partidos,
+        'futsal'
       ),
     })),
     [grupos, partidos]
@@ -129,6 +124,9 @@ export default function CuadroFutsal() {
                 <div key={jornada} className="bg-[#1e293b]/50 rounded-xl border border-slate-800 p-6 shadow-md">
                   <h3 className="text-blue-400 font-black uppercase tracking-widest text-sm mb-6 flex items-center gap-2 border-b border-slate-700/50 pb-3">
                     <span>🕒</span> {NOMBRES_JORNADAS[jornada] || `Jornada ${jornada}`}
+                    {fechaJornada(partidos, jornada) && (
+                      <span className="text-slate-500 font-bold normal-case tracking-normal">· {fechaJornada(partidos, jornada)}</span>
+                    )}
                   </h3>
                   <div className="flex flex-wrap gap-5">
                     {partidos
@@ -141,6 +139,8 @@ export default function CuadroFutsal() {
             </div>
           </section>
         )}
+
+        <SancionesTorneo torneoId={torneoId} accent="blue" />
 
         <section>
           <h2 className="text-xl font-black text-white mb-10 uppercase tracking-widest border-l-4 border-blue-500 pl-4">

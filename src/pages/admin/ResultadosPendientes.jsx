@@ -5,11 +5,13 @@ import { validarResultadoPadel } from '../../lib/validarPadel';
 import { HoraUbicacionPicker } from '../../components/ui/HoraUbicacionPicker';
 import { sanitizarDetalle } from '../../lib/sanitize';
 import { checkRateLimit } from '../../lib/rateLimit';
+import { fechaCorta } from '../../lib/fecha';
 
 export default function ResultadosPendientes({ partidos, onActualizar }) {
   const [editando,      setEditando]      = useState(null);
   const [editHora,      setEditHora]      = useState('');
   const [editUbicacion, setEditUbicacion] = useState('');
+  const [editFecha,     setEditFecha]     = useState('');
   const [confirmando,   setConfirmando]   = useState(null);
   const [errores,       setErrores]       = useState({});
   const [finalizados,   setFinalizados]   = useState([]);
@@ -71,6 +73,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
     setEditando(p.id);
     setEditHora(p.hora || '');
     setEditUbicacion(p.ubicacion || '');
+    setEditFecha(p.fecha || '');
   };
 
   const guardarEdicion = async (id) => {
@@ -88,7 +91,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
         return;
       }
     }
-    const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null }).eq('id', id);
+    const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null, fecha: editFecha || null }).eq('id', id);
     if (error) { setError(id, 'Error al guardar.'); return; }
     setEditando(null);
     onActualizar();
@@ -164,7 +167,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
               {!estaEditando && (
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-slate-400 text-xs font-medium uppercase tracking-widest">
-                    {p.fase} · {p.hora || '—'} · {p.ubicacion || '—'}
+                    {p.fase} · {fechaCorta(p.fecha) ? `${fechaCorta(p.fecha)} · ` : ''}{p.hora || '—'} · {p.ubicacion || '—'}
                   </span>
                   <button
                     onClick={() => iniciarEdicion(p)}
@@ -183,9 +186,11 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
                 <HoraUbicacionPicker
                   hora={editHora}
                   ubicacion={editUbicacion}
+                  fecha={editFecha}
                   deporte={p.torneo?.deporte}
                   onHora={setEditHora}
                   onUbicacion={setEditUbicacion}
+                  onFecha={setEditFecha}
                 />
                 <div className="flex gap-3 pt-1">
                   <button onClick={() => setEditando(null)} className="flex items-center gap-1.5 text-slate-400 hover:text-white bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all">

@@ -63,32 +63,81 @@ function generarCalendarioJornadas(equipos) {
 /** Nombre de grupo por índice: A, B, C … */
 const letraGrupo = (i) => String.fromCharCode(65 + i);
 
-const FRANJAS_HORARIAS = ['21:00', '22:00'];
-const SEDES_FUTSAL     = ['Pista Exterior', 'Pabellón'];
+const SEDES_POR_DEPORTE = {
+  futsal: ['Pista Exterior', 'Pabellón'],
+  padel:  ['Pista 1', 'Pista 2'],
+};
+// Franjas horarias fijas por deporte. Con 2 sedes, la capacidad por jornada es
+// franjas × sedes: futsal 2×2 = 4 partidos/jornada; pádel 3×2 = 6 partidos/jornada.
+const HORARIOS_POR_DEPORTE = {
+  futsal: ['21:00', '22:00'],
+  padel:  ['19:00', '20:30', '22:00'],
+};
 
 /**
- * Asigna hora y sede automáticamente cuando el torneo tiene exactamente 2 grupos
- * y cada jornada genera 2 partidos por grupo (grupos de 4 o 5 equipos).
- * Cada jornada usa las franjas 21:00 y 22:00: en cada franja se juega un partido
- * en cada sede, y el grupo asignado a cada sede se alterna de una jornada a otra
- * para que no siempre caigan los mismos partidos en el mismo sitio.
+ * Asigna hora y sede a TODOS los partidos de la liguilla, para cualquier número
+ * de grupos (futsal o pádel).
+ *
+ * Los partidos se empaquetan en jornadas de capacidad fija (4 en futsal, 6 en
+ * pádel): en cada jornada se ocupan las 2 sedes en cada franja horaria (2
+ * partidos por franja). Un equipo/pareja juega como máximo una vez por jornada,
+ * así nunca coincide consigo mismo en dos horarios. Los partidos que no llenan
+ * una jornada completa se colocan en una jornada extra final.
+ *
+ * Los equipos que descansan (byes por número impar) ya vienen excluidos de
+ * `jornadasPorGrupo`.
  */
-function asignarHorarioDosGrupos(jornadasPorGrupo) {
-  const [jornadasA, jornadasB] = jornadasPorGrupo;
-  const nJornadas = Math.max(jornadasA.length, jornadasB.length);
-  const partidos = [];
+function asignarHorario(jornadasPorGrupo, deporte = 'futsal') {
+  const sedes    = SEDES_POR_DEPORTE[deporte]    ?? SEDES_POR_DEPORTE.futsal;
+  const horarios = HORARIOS_POR_DEPORTE[deporte] ?? HORARIOS_POR_DEPORTE.futsal;
+  const V = sedes.length;
+  const capacidad = horarios.length * V;
 
-  for (let ji = 0; ji < nJornadas; ji++) {
-    const sedeA = ji % 2 === 0 ? SEDES_FUTSAL[0] : SEDES_FUTSAL[1];
-    const sedeB = ji % 2 === 0 ? SEDES_FUTSAL[1] : SEDES_FUTSAL[0];
-
-    (jornadasA[ji] || []).forEach((cruce, idx) => {
-      partidos.push({ ...cruce, grupoIdx: 0, jornada: ji + 1, hora: FRANJAS_HORARIAS[idx] ?? null, ubicacion: sedeA });
-    });
-    (jornadasB[ji] || []).forEach((cruce, idx) => {
-      partidos.push({ ...cruce, grupoIdx: 1, jornada: ji + 1, hora: FRANJAS_HORARIAS[idx] ?? null, ubicacion: sedeB });
+  // Todos los cruces de la liguilla, recorriendo las rondas e intercalando
+  // grupos (A1, B1, C1, A2…) para repartir el reparto entre jornadas.
+  const todos = [];
+  const maxRondas = jornadasPorGrupo.reduce((max, j) => Math.max(max, j.length), 0);
+  for (let r = 0; r < maxRondas; r++) {
+    jornadasPorGrupo.forEach((jornadas, gi) => {
+      (jornadas[r] || []).forEach((cruce) => todos.push({ ...cruce, grupoIdx: gi }));
     });
   }
+
+  // Empaquetar en jornadas de capacidad fija; cada equipo, máximo una vez por
+  // jornada. Los sobrantes abren una jornada nueva (la última puede ir a medias).
+  const jornadas = []; // { equipos:Set, cruces:[] }
+  for (const cruce of todos) {
+    let colocado = false;
+    for (const j of jornadas) {
+      if (
+        j.cruces.length < capacidad &&
+        !j.equipos.has(cruce.local) &&
+        !j.equipos.has(cruce.visitante)
+      ) {
+        j.cruces.push(cruce);
+        j.equipos.add(cruce.local);
+        j.equipos.add(cruce.visitante);
+        colocado = true;
+        break;
+      }
+    }
+    if (!colocado) {
+      jornadas.push({ equipos: new Set([cruce.local, cruce.visitante]), cruces: [cruce] });
+    }
+  }
+
+  // Asignar hora y sede dentro de cada jornada: 2 partidos por franja horaria.
+  const partidos = [];
+  jornadas.forEach((j, ji) => {
+    j.cruces.forEach((cruce, p) => {
+      partidos.push({
+        ...cruce,
+        jornada:   ji + 1,
+        hora:      horarios[Math.floor(p / V)] ?? horarios[horarios.length - 1],
+        ubicacion: sedes[p % V],
+      });
+    });
+  });
   return partidos;
 }
 
@@ -97,6 +146,7 @@ function asignarHorarioDosGrupos(jornadasPorGrupo) {
 export default function CreadorTorneo({ onTorneoCreado }) {
   const [nombre,      setNombre]      = useState('');
   const [deporte,     setDeporte]     = useState('futsal');
+  const [categoria,   setCategoria]   = useState('global'); // solo pádel: oro | plata | global
   const [textoEquipos,setTextoEquipos]= useState('');
   const [tamGrupo,    setTamGrupo]    = useState(4);
   const [estado,      setEstado]      = useState('Inscripciones abiertas');
@@ -106,10 +156,18 @@ export default function CreadorTorneo({ onTorneoCreado }) {
 
   // ── Parsear equipos del textarea ──────────────────────────────────────────
   const parsearEquipos = () => {
-    return textoEquipos
+    const limpios = textoEquipos
       .split(/[\n,]+/)
       .map((e) => sanitizarEquipo(e))
       .filter(Boolean);
+    // Dedupe (case-insensitive): dentro de un torneo el nombre debe ser único
+    const vistos = new Set();
+    return limpios.filter((n) => {
+      const k = n.toLowerCase();
+      if (vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
   };
 
   // ── Generar preview (sin tocar la BD) ─────────────────────────────────────
@@ -125,10 +183,9 @@ export default function CreadorTorneo({ onTorneoCreado }) {
     const mezclados      = shuffle(equipos);
     const grupos         = repartirEnGrupos(mezclados, tamGrupo);
     const jornadasPorGrupo = grupos.map((g) => generarCalendarioJornadas(g));
-    const horarioAutomatico = grupos.length === 2 && jornadasPorGrupo.every((j) => j.every((r) => r.length === 2));
-    const calendario = horarioAutomatico ? asignarHorarioDosGrupos(jornadasPorGrupo) : null;
+    const calendario     = asignarHorario(jornadasPorGrupo, deporte);
 
-    setPreview({ grupos, jornadasPorGrupo, horarioAutomatico, calendario });
+    setPreview({ grupos, jornadasPorGrupo, calendario });
     setFase('preview');
   };
 
@@ -142,7 +199,13 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       // 1. Torneo
       const { data: torneo, error: e1 } = await supabase
         .from('torneos')
-        .insert([{ nombre: sanitizarNombre(nombre), deporte, estado }])
+        .insert([{
+          nombre: sanitizarNombre(nombre),
+          deporte,
+          estado,
+          formato: 'liga',
+          categoria: deporte === 'padel' ? categoria : null,
+        }])
         .select()
         .single();
       if (e1) throw new Error('Error creando torneo: ' + e1.message);
@@ -156,11 +219,11 @@ export default function CreadorTorneo({ onTorneoCreado }) {
         .select();
       if (e2) throw new Error('Error creando grupos: ' + e2.message);
 
-      // 3. Participantes (upsert por nombre único)
+      // 3. Participantes (con alcance de torneo; nombre único por torneo)
       const todosNombres = preview.grupos.flat();
       const { data: participantesDB, error: e3 } = await supabase
         .from('participantes')
-        .upsert(todosNombres.map((n) => ({ nombre: n })), { onConflict: 'nombre' })
+        .insert(todosNombres.map((n) => ({ nombre: n, torneo_id: tId })))
         .select();
       if (e3) throw new Error('Error creando participantes: ' + e3.message);
 
@@ -176,34 +239,18 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       const { error: e4 } = await supabase.from('grupo_participantes').insert(asignaciones);
       if (e4) throw new Error('Error asignando participantes: ' + e4.message);
 
-      // 5. Generar partidos por jornadas de liga a una vuelta.
-      //    Con 2 grupos y 2 partidos por jornada (grupos de 4 o 5 equipos) se asigna
-      //    automáticamente hora y sede; en otro caso quedan en blanco para editarlas después.
-      const partidos = preview.horarioAutomatico
-        ? asignarHorarioDosGrupos(preview.jornadasPorGrupo).map((p) => ({
-            torneo_id:    tId,
-            fase:         'grupos',
-            jornada:      p.jornada,
-            hora:         p.hora,
-            ubicacion:    p.ubicacion,
-            estado:       'pendiente',
-            local_id:     idPor(p.local),
-            visitante_id: idPor(p.visitante),
-          }))
-        : preview.jornadasPorGrupo.flatMap((jornadas) =>
-            jornadas.flatMap((partidosRonda, ji) =>
-              partidosRonda.map((cruce) => ({
-                torneo_id:   tId,
-                fase:        'grupos',
-                jornada:     ji + 1,
-                hora:        null,
-                ubicacion:   null,
-                estado:      'pendiente',
-                local_id:    idPor(cruce.local),
-                visitante_id:idPor(cruce.visitante),
-              }))
-            )
-          );
+      // 5. Generar partidos de liga a una vuelta con hora y sede asignadas
+      //    automáticamente (rejilla sede × franja) para cualquier nº de grupos.
+      const partidos = asignarHorario(preview.jornadasPorGrupo, deporte).map((p) => ({
+        torneo_id:    tId,
+        fase:         'grupos',
+        jornada:      p.jornada,
+        hora:         p.hora,
+        ubicacion:    p.ubicacion,
+        estado:       'pendiente',
+        local_id:     idPor(p.local),
+        visitante_id: idPor(p.visitante),
+      }));
 
       const { error: e5 } = await supabase.from('partidos').insert(partidos);
       if (e5) throw new Error('Error creando partidos: ' + e5.message);
@@ -219,7 +266,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
 
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = () => {
-    setNombre(''); setDeporte('futsal'); setTextoEquipos('');
+    setNombre(''); setDeporte('futsal'); setCategoria('global'); setTextoEquipos('');
     setTamGrupo(4); setEstado('Inscripciones abiertas');
     setFase('idle'); setPreview(null); setError('');
   };
@@ -300,6 +347,38 @@ export default function CreadorTorneo({ onTorneoCreado }) {
               </div>
             </div>
           </div>
+
+          {/* Categoría (solo pádel) */}
+          {deporte === 'padel' && (
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+                Categoría
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { v: 'global', l: '🌐 Global' },
+                  { v: 'oro',    l: '🏆 Oro'    },
+                  { v: 'plata',  l: '🥈 Plata'  },
+                ].map(({ v, l }) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setCategoria(v)}
+                    className={`py-2.5 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${
+                      categoria === v
+                        ? 'bg-[#60A5FA] text-black border-[#60A5FA] shadow-lg'
+                        : 'bg-[#0f172a] text-slate-400 border-slate-700 hover:border-slate-500'
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
+                Global: torneo mixto (oro + plata) con pocos participantes.
+              </p>
+            </div>
+          )}
 
           {/* Tamaño de grupo */}
           <div>
@@ -392,8 +471,8 @@ export default function CreadorTorneo({ onTorneoCreado }) {
             ))}
           </div>
 
-          {/* Calendario con hora y sede (2 grupos, 2 partidos por jornada) */}
-          {preview.horarioAutomatico && (
+          {/* Calendario con hora y sede — se genera siempre */}
+          {preview.calendario.length > 0 && (
             <div>
               <h4 className="text-white font-black uppercase tracking-widest text-sm mb-3 flex items-center gap-2">
                 <Wand2 size={16} className="text-[#60A5FA]" /> Calendario generado
@@ -428,11 +507,9 @@ export default function CreadorTorneo({ onTorneoCreado }) {
             <p><span className="text-white font-bold">Deporte:</span> {deporte}</p>
             <p><span className="text-white font-bold">Total equipos:</span> {preview.grupos.flat().length}</p>
             <p><span className="text-white font-bold">Total partidos de grupos:</span> {preview.grupos.reduce((acc, g) => acc + generarLiguilla(g).length, 0)}</p>
-            {!preview.horarioAutomatico && (
-              <p className="text-amber-500 text-xs font-bold pt-1">
-                ⚠ Las horas y pistas quedarán en blanco. Edítalas desde Resultados Pendientes.
-              </p>
-            )}
+            <p className="text-slate-500 text-xs pt-1">
+              Horas y pistas se asignan automáticamente. Podrás editarlas después desde Resultados Pendientes.
+            </p>
           </div>
 
           {/* Botón confirmar */}

@@ -6,7 +6,9 @@ import { BracketConLineas }  from '../../components/ui/BracketConLineas';
 import { StandingsTable }    from '../../components/ui/StandingsTable';
 import { MatchNode }         from '../../components/ui/MatchNode';
 import { Skeleton }          from '../../components/ui/Skeleton';
+import { SancionesTorneo }   from '../../components/ui/SancionesTorneo';
 import { calcularStats }     from '../../hooks/useCalcStats';
+import { ordenarClasificacion } from '../../lib/clasificacion';
 
 const ESQ_CUARTOS = [
   { id:'c1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'Mejor 3º'}    },
@@ -28,9 +30,11 @@ export default function CuadroFutsal24H() {
   const clasificaciones = useMemo(() =>
     grupos.map(g => ({
       ...g,
-      equipos: g.grupo_participantes
-        .map(gp => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'futsal'), grupo: g.nombre }))
-        .sort((a,b) => b.stats.pts - a.stats.pts || b.stats.dif - a.stats.dif || b.stats.gf - a.stats.gf),
+      equipos: ordenarClasificacion(
+        g.grupo_participantes.map(gp => ({ ...gp.participantes, stats: calcularStats(partidos, gp.participantes.id, 'futsal'), grupo: g.nombre })),
+        partidos,
+        'futsal'
+      ),
     })),
     [grupos, partidos]
   );
@@ -180,6 +184,9 @@ export default function CuadroFutsal24H() {
             </div>
           </section>
         )}
+
+        {/* Sanciones */}
+        <SancionesTorneo torneoId={torneoId} accent="amber" />
 
         {/* Fase final */}
         <section>

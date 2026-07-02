@@ -38,7 +38,7 @@ export function useRealtimeTorneo(torneoId) {
       supabase
         .from('partidos')
         .select([
-          'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora',
+          'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora', 'fecha',
           'local_id', 'visitante_id',
           'puntuacion_local', 'puntuacion_visitante', 'detalle_resultado',
           'local:participantes!local_id(nombre)',
