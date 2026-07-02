@@ -63,35 +63,60 @@ function generarCalendarioJornadas(equipos) {
 /** Nombre de grupo por índice: A, B, C … */
 const letraGrupo = (i) => String.fromCharCode(65 + i);
 
-const FRANJAS_HORARIAS = ['21:00', '22:00'];
 const SEDES_POR_DEPORTE = {
   futsal: ['Pista Exterior', 'Pabellón'],
   padel:  ['Pista 1', 'Pista 2'],
 };
+const HORA_INICIO = { futsal: '21:00', padel: '20:00' };
+const DURACION_FRANJA_MIN = 60; // minutos entre franjas horarias
+
+/** Hora resultante de sumar `idx` franjas al inicio (formato HH:MM, 24h). */
+function horaEnFranja(inicio, idx) {
+  const [h, m] = inicio.split(':').map(Number);
+  const total = h * 60 + m + idx * DURACION_FRANJA_MIN;
+  const hh = String(Math.floor(total / 60) % 24).padStart(2, '0');
+  const mm = String(total % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 /**
- * Asigna hora y sede automáticamente cuando el torneo tiene exactamente 2 grupos
- * y cada jornada genera 2 partidos por grupo (grupos de 4 o 5 equipos).
- * Cada jornada usa las franjas 21:00 y 22:00: en cada franja se juega un partido
- * en cada sede, y el grupo asignado a cada sede se alterna de una jornada a otra
- * para que no siempre caigan los mismos partidos en el mismo sitio.
- * Las sedes dependen del deporte (pistas de pádel vs sedes de futsal).
+ * Asigna hora y sede a TODOS los partidos, para cualquier número de grupos y
+ * cualquier número de partidos por jornada (futsal o pádel).
+ *
+ * En cada jornada los partidos se colocan en una rejilla `sede × franja`:
+ * se ocupan todas las sedes en una franja antes de pasar a la siguiente, así
+ * los que caben en paralelo juegan a la misma hora en pistas distintas. La
+ * sede inicial rota con la jornada para repartir horarios y pistas de forma
+ * equitativa entre todos los participantes.
+ *
+ * Los equipos que descansan (byes por número impar) ya vienen excluidos de
+ * `jornadasPorGrupo`, así que aquí no hay que hacer nada especial con ellos.
  */
-function asignarHorarioDosGrupos(jornadasPorGrupo, deporte = 'futsal') {
-  const sedes = SEDES_POR_DEPORTE[deporte] ?? SEDES_POR_DEPORTE.futsal;
-  const [jornadasA, jornadasB] = jornadasPorGrupo;
-  const nJornadas = Math.max(jornadasA.length, jornadasB.length);
+function asignarHorario(jornadasPorGrupo, deporte = 'futsal') {
+  const sedes  = SEDES_POR_DEPORTE[deporte] ?? SEDES_POR_DEPORTE.futsal;
+  const inicio = HORA_INICIO[deporte] ?? HORA_INICIO.futsal;
+  const V = sedes.length;
+  const nJornadas = jornadasPorGrupo.reduce((max, j) => Math.max(max, j.length), 0);
   const partidos = [];
 
   for (let ji = 0; ji < nJornadas; ji++) {
-    const sedeA = ji % 2 === 0 ? sedes[0] : sedes[1];
-    const sedeB = ji % 2 === 0 ? sedes[1] : sedes[0];
+    // Partidos de esta jornada, intercalando grupos (A1, B1, C1, A2, B2…)
+    const porGrupo = jornadasPorGrupo.map((jornadas, gi) =>
+      (jornadas[ji] || []).map((cruce) => ({ ...cruce, grupoIdx: gi }))
+    );
+    const maxLen = porGrupo.reduce((max, a) => Math.max(max, a.length), 0);
+    const deLaJornada = [];
+    for (let k = 0; k < maxLen; k++) {
+      porGrupo.forEach((a) => { if (a[k]) deLaJornada.push(a[k]); });
+    }
 
-    (jornadasA[ji] || []).forEach((cruce, idx) => {
-      partidos.push({ ...cruce, grupoIdx: 0, jornada: ji + 1, hora: FRANJAS_HORARIAS[idx] ?? null, ubicacion: sedeA });
-    });
-    (jornadasB[ji] || []).forEach((cruce, idx) => {
-      partidos.push({ ...cruce, grupoIdx: 1, jornada: ji + 1, hora: FRANJAS_HORARIAS[idx] ?? null, ubicacion: sedeB });
+    deLaJornada.forEach((cruce, p) => {
+      partidos.push({
+        ...cruce,
+        jornada:   ji + 1,
+        hora:      horaEnFranja(inicio, Math.floor(p / V)),
+        ubicacion: sedes[(p + ji) % V],
+      });
     });
   }
   return partidos;
@@ -139,10 +164,9 @@ export default function CreadorTorneo({ onTorneoCreado }) {
     const mezclados      = shuffle(equipos);
     const grupos         = repartirEnGrupos(mezclados, tamGrupo);
     const jornadasPorGrupo = grupos.map((g) => generarCalendarioJornadas(g));
-    const horarioAutomatico = grupos.length === 2 && jornadasPorGrupo.every((j) => j.every((r) => r.length === 2));
-    const calendario = horarioAutomatico ? asignarHorarioDosGrupos(jornadasPorGrupo, deporte) : null;
+    const calendario     = asignarHorario(jornadasPorGrupo, deporte);
 
-    setPreview({ grupos, jornadasPorGrupo, horarioAutomatico, calendario });
+    setPreview({ grupos, jornadasPorGrupo, calendario });
     setFase('preview');
   };
 
@@ -196,34 +220,18 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       const { error: e4 } = await supabase.from('grupo_participantes').insert(asignaciones);
       if (e4) throw new Error('Error asignando participantes: ' + e4.message);
 
-      // 5. Generar partidos por jornadas de liga a una vuelta.
-      //    Con 2 grupos y 2 partidos por jornada (grupos de 4 o 5 equipos) se asigna
-      //    automáticamente hora y sede; en otro caso quedan en blanco para editarlas después.
-      const partidos = preview.horarioAutomatico
-        ? asignarHorarioDosGrupos(preview.jornadasPorGrupo, deporte).map((p) => ({
-            torneo_id:    tId,
-            fase:         'grupos',
-            jornada:      p.jornada,
-            hora:         p.hora,
-            ubicacion:    p.ubicacion,
-            estado:       'pendiente',
-            local_id:     idPor(p.local),
-            visitante_id: idPor(p.visitante),
-          }))
-        : preview.jornadasPorGrupo.flatMap((jornadas) =>
-            jornadas.flatMap((partidosRonda, ji) =>
-              partidosRonda.map((cruce) => ({
-                torneo_id:   tId,
-                fase:        'grupos',
-                jornada:     ji + 1,
-                hora:        null,
-                ubicacion:   null,
-                estado:      'pendiente',
-                local_id:    idPor(cruce.local),
-                visitante_id:idPor(cruce.visitante),
-              }))
-            )
-          );
+      // 5. Generar partidos de liga a una vuelta con hora y sede asignadas
+      //    automáticamente (rejilla sede × franja) para cualquier nº de grupos.
+      const partidos = asignarHorario(preview.jornadasPorGrupo, deporte).map((p) => ({
+        torneo_id:    tId,
+        fase:         'grupos',
+        jornada:      p.jornada,
+        hora:         p.hora,
+        ubicacion:    p.ubicacion,
+        estado:       'pendiente',
+        local_id:     idPor(p.local),
+        visitante_id: idPor(p.visitante),
+      }));
 
       const { error: e5 } = await supabase.from('partidos').insert(partidos);
       if (e5) throw new Error('Error creando partidos: ' + e5.message);
@@ -444,8 +452,8 @@ export default function CreadorTorneo({ onTorneoCreado }) {
             ))}
           </div>
 
-          {/* Calendario con hora y sede (2 grupos, 2 partidos por jornada) */}
-          {preview.horarioAutomatico && (
+          {/* Calendario con hora y sede — se genera siempre */}
+          {preview.calendario.length > 0 && (
             <div>
               <h4 className="text-white font-black uppercase tracking-widest text-sm mb-3 flex items-center gap-2">
                 <Wand2 size={16} className="text-[#60A5FA]" /> Calendario generado
@@ -480,11 +488,9 @@ export default function CreadorTorneo({ onTorneoCreado }) {
             <p><span className="text-white font-bold">Deporte:</span> {deporte}</p>
             <p><span className="text-white font-bold">Total equipos:</span> {preview.grupos.flat().length}</p>
             <p><span className="text-white font-bold">Total partidos de grupos:</span> {preview.grupos.reduce((acc, g) => acc + generarLiguilla(g).length, 0)}</p>
-            {!preview.horarioAutomatico && (
-              <p className="text-amber-500 text-xs font-bold pt-1">
-                ⚠ Las horas y pistas quedarán en blanco. Edítalas desde Resultados Pendientes.
-              </p>
-            )}
+            <p className="text-slate-500 text-xs pt-1">
+              Horas y pistas se asignan automáticamente. Podrás editarlas después desde Resultados Pendientes.
+            </p>
           </div>
 
           {/* Botón confirmar */}
