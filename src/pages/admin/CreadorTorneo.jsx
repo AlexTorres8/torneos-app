@@ -67,58 +67,77 @@ const SEDES_POR_DEPORTE = {
   futsal: ['Pista Exterior', 'Pabellón'],
   padel:  ['Pista 1', 'Pista 2'],
 };
-const HORA_INICIO = { futsal: '21:00', padel: '20:00' };
-const DURACION_FRANJA_MIN = 60; // minutos entre franjas horarias
-
-/** Hora resultante de sumar `idx` franjas al inicio (formato HH:MM, 24h). */
-function horaEnFranja(inicio, idx) {
-  const [h, m] = inicio.split(':').map(Number);
-  const total = h * 60 + m + idx * DURACION_FRANJA_MIN;
-  const hh = String(Math.floor(total / 60) % 24).padStart(2, '0');
-  const mm = String(total % 60).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
+// Franjas horarias fijas por deporte. Con 2 sedes, la capacidad por jornada es
+// franjas × sedes: futsal 2×2 = 4 partidos/jornada; pádel 3×2 = 6 partidos/jornada.
+const HORARIOS_POR_DEPORTE = {
+  futsal: ['21:00', '22:00'],
+  padel:  ['19:00', '20:30', '22:00'],
+};
 
 /**
- * Asigna hora y sede a TODOS los partidos, para cualquier número de grupos y
- * cualquier número de partidos por jornada (futsal o pádel).
+ * Asigna hora y sede a TODOS los partidos de la liguilla, para cualquier número
+ * de grupos (futsal o pádel).
  *
- * En cada jornada los partidos se colocan en una rejilla `sede × franja`:
- * se ocupan todas las sedes en una franja antes de pasar a la siguiente, así
- * los que caben en paralelo juegan a la misma hora en pistas distintas. La
- * sede inicial rota con la jornada para repartir horarios y pistas de forma
- * equitativa entre todos los participantes.
+ * Los partidos se empaquetan en jornadas de capacidad fija (4 en futsal, 6 en
+ * pádel): en cada jornada se ocupan las 2 sedes en cada franja horaria (2
+ * partidos por franja). Un equipo/pareja juega como máximo una vez por jornada,
+ * así nunca coincide consigo mismo en dos horarios. Los partidos que no llenan
+ * una jornada completa se colocan en una jornada extra final.
  *
  * Los equipos que descansan (byes por número impar) ya vienen excluidos de
- * `jornadasPorGrupo`, así que aquí no hay que hacer nada especial con ellos.
+ * `jornadasPorGrupo`.
  */
 function asignarHorario(jornadasPorGrupo, deporte = 'futsal') {
-  const sedes  = SEDES_POR_DEPORTE[deporte] ?? SEDES_POR_DEPORTE.futsal;
-  const inicio = HORA_INICIO[deporte] ?? HORA_INICIO.futsal;
+  const sedes    = SEDES_POR_DEPORTE[deporte]    ?? SEDES_POR_DEPORTE.futsal;
+  const horarios = HORARIOS_POR_DEPORTE[deporte] ?? HORARIOS_POR_DEPORTE.futsal;
   const V = sedes.length;
-  const nJornadas = jornadasPorGrupo.reduce((max, j) => Math.max(max, j.length), 0);
-  const partidos = [];
+  const capacidad = horarios.length * V;
 
-  for (let ji = 0; ji < nJornadas; ji++) {
-    // Partidos de esta jornada, intercalando grupos (A1, B1, C1, A2, B2…)
-    const porGrupo = jornadasPorGrupo.map((jornadas, gi) =>
-      (jornadas[ji] || []).map((cruce) => ({ ...cruce, grupoIdx: gi }))
-    );
-    const maxLen = porGrupo.reduce((max, a) => Math.max(max, a.length), 0);
-    const deLaJornada = [];
-    for (let k = 0; k < maxLen; k++) {
-      porGrupo.forEach((a) => { if (a[k]) deLaJornada.push(a[k]); });
+  // Todos los cruces de la liguilla, recorriendo las rondas e intercalando
+  // grupos (A1, B1, C1, A2…) para repartir el reparto entre jornadas.
+  const todos = [];
+  const maxRondas = jornadasPorGrupo.reduce((max, j) => Math.max(max, j.length), 0);
+  for (let r = 0; r < maxRondas; r++) {
+    jornadasPorGrupo.forEach((jornadas, gi) => {
+      (jornadas[r] || []).forEach((cruce) => todos.push({ ...cruce, grupoIdx: gi }));
+    });
+  }
+
+  // Empaquetar en jornadas de capacidad fija; cada equipo, máximo una vez por
+  // jornada. Los sobrantes abren una jornada nueva (la última puede ir a medias).
+  const jornadas = []; // { equipos:Set, cruces:[] }
+  for (const cruce of todos) {
+    let colocado = false;
+    for (const j of jornadas) {
+      if (
+        j.cruces.length < capacidad &&
+        !j.equipos.has(cruce.local) &&
+        !j.equipos.has(cruce.visitante)
+      ) {
+        j.cruces.push(cruce);
+        j.equipos.add(cruce.local);
+        j.equipos.add(cruce.visitante);
+        colocado = true;
+        break;
+      }
     }
+    if (!colocado) {
+      jornadas.push({ equipos: new Set([cruce.local, cruce.visitante]), cruces: [cruce] });
+    }
+  }
 
-    deLaJornada.forEach((cruce, p) => {
+  // Asignar hora y sede dentro de cada jornada: 2 partidos por franja horaria.
+  const partidos = [];
+  jornadas.forEach((j, ji) => {
+    j.cruces.forEach((cruce, p) => {
       partidos.push({
         ...cruce,
         jornada:   ji + 1,
-        hora:      horaEnFranja(inicio, Math.floor(p / V)),
-        ubicacion: sedes[(p + ji) % V],
+        hora:      horarios[Math.floor(p / V)] ?? horarios[horarios.length - 1],
+        ubicacion: sedes[p % V],
       });
     });
-  }
+  });
   return partidos;
 }
 
