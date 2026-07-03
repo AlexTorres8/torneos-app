@@ -49,6 +49,16 @@ const ESQ_SEMIS_ORO = [
   { id:'s2', hora:'21:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'G. Previa 2'} },
 ];
 
+// Oro reducido (≤6 parejas): sin ronda previa, semifinales directas y final.
+const ESQ_SEMIS_ORO_CRUCE = [ // 2 grupos: cruce 1º-2º
+  { id:'s1', hora:'21:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'2º Grupo B'} },
+  { id:'s2', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Grupo A'} },
+];
+const ESQ_SEMIS_ORO_UNICO = [ // grupo único: 1º-4º y 2º-3º
+  { id:'s1', hora:'21:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'4º Grupo A'} },
+  { id:'s2', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo A'} },
+];
+
 const NOMBRES_JORNADAS = { 1:'Jornada 1', 2:'Jornada 2', 3:'Jornada 3', 4:'Jornada 4', 5:'Jornada 5', 6:'Jornada 6' };
 
 export default function CuadroPadel() {
@@ -80,9 +90,22 @@ export default function CuadroPadel() {
   const semis    = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => a.jornada - b.jornada), [partidos]);
   const finales  = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
 
+  // Oro con ≤6 parejas: cuadro mínimo sin ronda previa (semis directas y final).
+  const totalParejas = grupos.reduce((n, g) => n + (g.grupo_participantes?.length ?? 0), 0);
+  const oroReducido  = esOro && grupos.length > 0 && totalParejas <= 6;
+
   // En ORO el cuadro es reducido: previa (2 partidos), semis y final, sin cuartos.
   // Si un torneo oro tuviera cuartos reales creados, se muestran igualmente.
-  const rondas = esOro
+  const rondas = oroReducido
+    ? [
+        // Sin ronda previa; si existieran partidos reales de previa o cuartos,
+        // se muestran igualmente para no ocultar datos.
+        ...(playoffs.length > 0 ? [{ label: 'Ronda Previa', partidos: playoffs }] : []),
+        ...(cuartos.length  > 0 ? [{ label: 'Cuartos',      partidos: cuartos  }] : []),
+        { label: 'Semifinales', partidos: semis.length > 0 ? semis : (grupos.length === 1 ? ESQ_SEMIS_ORO_UNICO : ESQ_SEMIS_ORO_CRUCE) },
+        { label: 'Gran Final',  partidos: finales.length > 0 ? finales : ESQ_FINAL },
+      ]
+    : esOro
     ? [
         { label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PREVIA_ORO },
         ...(cuartos.length > 0 ? [{ label: 'Cuartos', partidos: cuartos }] : []),

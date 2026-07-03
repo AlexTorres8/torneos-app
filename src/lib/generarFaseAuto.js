@@ -60,6 +60,7 @@ export async function calcularFaseAuto(torneoId, deporte) {
   const { data: torneoRow } = await supabase
     .from('torneos').select('categoria').eq('id', torneoId).single();
   const esPlata = deporte === 'padel' && torneoRow?.categoria === 'plata';
+  const esOro   = deporte === 'padel' && torneoRow?.categoria === 'oro';
 
   // ── 1. Cargar grupos ──────────────────────────────────────────────────────
   const { data: grupos, error: e1 } = await supabase
@@ -147,7 +148,19 @@ export async function calcularFaseAuto(torneoId, deporte) {
   const nGrupos = clasificaciones.length;
   let fase, pares;
 
-  if (nGrupos === 2 && deporte === 'padel' && !esPlata) {
+  // Oro reducido (grupos de ≤3, o grupo único): sin ronda previa, semis directas.
+  const oroSinPrevia = esOro && clasificaciones.every((g) => g.equipos.length <= 3);
+
+  if (nGrupos === 1 && esOro) {
+    const [ga] = clasificaciones;
+    if (ga.equipos.length < 4) throw new Error('Se necesitan al menos 4 parejas clasificadas para generar las semifinales.');
+    fase  = 'semis';
+    pares = [
+      { etiq: `1º ${ga.nombre} vs 4º ${ga.nombre}`, local: ga.equipos[0], visitante: ga.equipos[3] },
+      { etiq: `2º ${ga.nombre} vs 3º ${ga.nombre}`, local: ga.equipos[1], visitante: ga.equipos[2] },
+    ];
+
+  } else if (nGrupos === 2 && deporte === 'padel' && !esPlata && !oroSinPrevia) {
     const [ga, gb] = clasificaciones;
     fase  = 'playoffs';
     pares = [
