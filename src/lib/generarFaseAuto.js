@@ -56,6 +56,11 @@ function _generarDesdeFaseAnterior(fase, origen, torneoId) {
  * Llama a confirmarFaseAuto() para insertar.
  */
 export async function calcularFaseAuto(torneoId, deporte) {
+  // ── 0. Categoría del torneo (pádel PLATA no tiene ronda previa) ───────────
+  const { data: torneoRow } = await supabase
+    .from('torneos').select('categoria').eq('id', torneoId).single();
+  const esPlata = deporte === 'padel' && torneoRow?.categoria === 'plata';
+
   // ── 1. Cargar grupos ──────────────────────────────────────────────────────
   const { data: grupos, error: e1 } = await supabase
     .from('grupos')
@@ -142,7 +147,7 @@ export async function calcularFaseAuto(torneoId, deporte) {
   const nGrupos = clasificaciones.length;
   let fase, pares;
 
-  if (nGrupos === 2 && deporte === 'padel') {
+  if (nGrupos === 2 && deporte === 'padel' && !esPlata) {
     const [ga, gb] = clasificaciones;
     fase  = 'playoffs';
     pares = [
@@ -184,6 +189,17 @@ export async function calcularFaseAuto(torneoId, deporte) {
       { etiq: `2º ${gc.nombre} vs 2º ${gb.nombre}`, local: gc.equipos[1], visitante: gb.equipos[1] },
       { etiq: `1º ${gb.nombre} vs 2º Mejor 3º`,     local: gb.equipos[0], visitante: terceros[1]   },
       { etiq: `1º ${gc.nombre} vs 2º ${ga.nombre}`, local: gc.equipos[0], visitante: ga.equipos[1] },
+    ];
+
+  } else if (nGrupos === 4 && esPlata) {
+    // Pádel PLATA: sin ronda previa, cuartos directos con 1º y 2º de cada grupo.
+    const [ga, gb, gc, gd] = clasificaciones;
+    fase  = 'cuartos';
+    pares = [
+      { etiq: `1º ${ga.nombre} vs 2º ${gb.nombre}`, local: ga.equipos[0], visitante: gb.equipos[1] },
+      { etiq: `1º ${gc.nombre} vs 2º ${gd.nombre}`, local: gc.equipos[0], visitante: gd.equipos[1] },
+      { etiq: `1º ${gb.nombre} vs 2º ${ga.nombre}`, local: gb.equipos[0], visitante: ga.equipos[1] },
+      { etiq: `1º ${gd.nombre} vs 2º ${gc.nombre}`, local: gd.equipos[0], visitante: gc.equipos[1] },
     ];
 
   } else if (nGrupos === 4) {

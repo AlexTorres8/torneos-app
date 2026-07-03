@@ -55,7 +55,8 @@ export default function CuadroPadel() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
   const { torneo, grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
-  const esOro = torneo?.categoria === 'oro';
+  const esOro   = torneo?.categoria === 'oro';
+  const esPlata = torneo?.categoria === 'plata';
 
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
@@ -89,7 +90,11 @@ export default function CuadroPadel() {
         { label: 'Gran Final',   partidos: finales.length > 0 ? finales : ESQ_FINAL },
       ]
     : [
-        { label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS },
+        // En PLATA no hay ronda previa: cuartos, semis y final. Si un torneo
+        // plata tuviera partidos de previa reales creados, se muestran igualmente.
+        ...(!esPlata || playoffs.length > 0
+          ? [{ label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS }]
+          : []),
         { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : ESQ_CUARTOS  },
         { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : ESQ_SEMIS    },
         { label: 'Gran Final',   partidos: finales.length  > 0 ? finales  : ESQ_FINAL    },
@@ -169,7 +174,7 @@ export default function CuadroPadel() {
         <section>
           <h2 className="text-xl font-black text-white mb-10 uppercase tracking-widest border-l-4 border-blue-500 pl-4">Fase Final</h2>
           {cargando
-            ? <Skeleton.Bracket rondas={esOro ? 3 : 4} />
+            ? <Skeleton.Bracket rondas={esOro || esPlata ? 3 : 4} />
             : <BracketConLineas rondas={rondas} variant="padel" />
           }
         </section>
