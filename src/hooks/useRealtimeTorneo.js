@@ -10,9 +10,10 @@ import { supabase } from '../supabase';
  * en menos de 1 segundo, sin recargar.
  *
  * @param {string} torneoId
- * @returns {{ grupos, partidos, cargando, error, recargar }}
+ * @returns {{ torneo, grupos, partidos, cargando, error, recargar }}
  */
 export function useRealtimeTorneo(torneoId) {
+  const [torneo,   setTorneo]   = useState(null);
   const [grupos,   setGrupos]   = useState([]);
   const [partidos, setPartidos] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -30,7 +31,7 @@ export function useRealtimeTorneo(torneoId) {
     setCargando(true);
     setError('');
 
-    const [{ data: g, error: e1 }, { data: p, error: e2 }] = await Promise.all([
+    const [{ data: g, error: e1 }, { data: p, error: e2 }, { data: t, error: e3 }] = await Promise.all([
       supabase
         .from('grupos')
         .select('id, nombre, grupo_participantes(participantes(id, nombre))')
@@ -45,6 +46,11 @@ export function useRealtimeTorneo(torneoId) {
           'visitante:participantes!visitante_id(nombre)',
         ].join(', '))
         .eq('torneo_id', torneoId),
+      supabase
+        .from('torneos')
+        .select('id, nombre, deporte, categoria, formato, estado')
+        .eq('id', torneoId)
+        .maybeSingle(),
     ]);
 
     if (!montado.current) return;
@@ -55,6 +61,8 @@ export function useRealtimeTorneo(torneoId) {
     } else {
       setGrupos(g  || []);
       setPartidos(p || []);
+      // El torneo es informativo (categoría/formato); su fallo no bloquea el cuadro.
+      if (!e3) setTorneo(t || null);
     }
     setCargando(false);
   }, [torneoId]);
@@ -87,7 +95,7 @@ export function useRealtimeTorneo(torneoId) {
             const { data } = await supabase
               .from('partidos')
               .select([
-                'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora',
+                'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora', 'fecha',
                 'local_id', 'visitante_id',
                 'puntuacion_local', 'puntuacion_visitante', 'detalle_resultado',
                 'local:participantes!local_id(nombre)',
@@ -118,5 +126,5 @@ export function useRealtimeTorneo(torneoId) {
     return () => { supabase.removeChannel(channel); };
   }, [torneoId, cargar]);
 
-  return { grupos, partidos, cargando, error, recargar: cargar };
+  return { torneo, grupos, partidos, cargando, error, recargar: cargar };
 }

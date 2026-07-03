@@ -38,12 +38,24 @@ const ESQ_SEMIS = [
 ];
 const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
 
+// Esqueleto reducido para torneos de categoría ORO: ronda previa de 2 partidos,
+// semifinales y gran final (sin cuartos).
+const ESQ_PREVIA_ORO = [
+  { id:'p1', hora:'19:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo B'} },
+  { id:'p2', hora:'19:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'2º Grupo B'}, visitante:{nombre:'3º Grupo A'} },
+];
+const ESQ_SEMIS_ORO = [
+  { id:'s1', hora:'21:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'G. Previa 1'} },
+  { id:'s2', hora:'21:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'G. Previa 2'} },
+];
+
 const NOMBRES_JORNADAS = { 1:'Jornada 1', 2:'Jornada 2', 3:'Jornada 3', 4:'Jornada 4', 5:'Jornada 5', 6:'Jornada 6' };
 
 export default function CuadroPadel() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
-  const { grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
+  const { torneo, grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
+  const esOro = torneo?.categoria === 'oro';
 
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
@@ -67,12 +79,21 @@ export default function CuadroPadel() {
   const semis    = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => a.jornada - b.jornada), [partidos]);
   const finales  = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
 
-  const rondas = [
-    { label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS },
-    { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : ESQ_CUARTOS  },
-    { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : ESQ_SEMIS    },
-    { label: 'Gran Final',   partidos: finales.length  > 0 ? finales  : ESQ_FINAL    },
-  ];
+  // En ORO el cuadro es reducido: previa (2 partidos), semis y final, sin cuartos.
+  // Si un torneo oro tuviera cuartos reales creados, se muestran igualmente.
+  const rondas = esOro
+    ? [
+        { label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PREVIA_ORO },
+        ...(cuartos.length > 0 ? [{ label: 'Cuartos', partidos: cuartos }] : []),
+        { label: 'Semifinales',  partidos: semis.length   > 0 ? semis   : ESQ_SEMIS_ORO },
+        { label: 'Gran Final',   partidos: finales.length > 0 ? finales : ESQ_FINAL },
+      ]
+    : [
+        { label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS },
+        { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : ESQ_CUARTOS  },
+        { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : ESQ_SEMIS    },
+        { label: 'Gran Final',   partidos: finales.length  > 0 ? finales  : ESQ_FINAL    },
+      ];
 
   const compartir = () => {
     const url = window.location.href;
@@ -148,7 +169,7 @@ export default function CuadroPadel() {
         <section>
           <h2 className="text-xl font-black text-white mb-10 uppercase tracking-widest border-l-4 border-blue-500 pl-4">Fase Final</h2>
           {cargando
-            ? <Skeleton.Bracket rondas={4} />
+            ? <Skeleton.Bracket rondas={esOro ? 3 : 4} />
             : <BracketConLineas rondas={rondas} variant="padel" />
           }
         </section>

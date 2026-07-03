@@ -12,6 +12,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
   const [editHora,      setEditHora]      = useState('');
   const [editUbicacion, setEditUbicacion] = useState('');
   const [editFecha,     setEditFecha]     = useState('');
+  const [editJornada,   setEditJornada]   = useState('');
   const [confirmando,   setConfirmando]   = useState(null);
   const [errores,       setErrores]       = useState({});
   const [finalizados,   setFinalizados]   = useState([]);
@@ -74,15 +75,23 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
     setEditHora(p.hora || '');
     setEditUbicacion(p.ubicacion || '');
     setEditFecha(p.fecha || '');
+    setEditJornada(p.jornada != null ? String(p.jornada) : '');
   };
 
   const guardarEdicion = async (id) => {
+    const actual = partidos.find(p => p.id === id);
+    // Jornada nueva: si el campo está vacío se conserva la actual del partido.
+    const jornadaNum = editJornada !== '' ? parseInt(editJornada, 10) : null;
+    if (editJornada !== '' && (isNaN(jornadaNum) || jornadaNum < 1)) {
+      setError(id, 'La jornada debe ser un número mayor o igual que 1.');
+      return;
+    }
+    const jornadaFinal = jornadaNum ?? actual?.jornada ?? null;
     if (editHora && editUbicacion) {
-      const actual = partidos.find(p => p.id === id);
       const conflicto = partidos.find(p =>
         p.id !== id &&
         p.torneo_id === actual?.torneo_id &&
-        p.jornada  === actual?.jornada &&
+        p.jornada  === jornadaFinal &&
         p.hora     === editHora &&
         p.ubicacion === editUbicacion
       );
@@ -91,7 +100,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
         return;
       }
     }
-    const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null, fecha: editFecha || null }).eq('id', id);
+    const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null, fecha: editFecha || null, jornada: jornadaFinal }).eq('id', id);
     if (error) { setError(id, 'Error al guardar.'); return; }
     setEditando(null);
     onActualizar();
@@ -167,13 +176,13 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
               {!estaEditando && (
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className="text-slate-400 text-xs font-medium uppercase tracking-widest">
-                    {p.fase} · {fechaCorta(p.fecha) ? `${fechaCorta(p.fecha)} · ` : ''}{p.hora || '—'} · {p.ubicacion || '—'}
+                    {p.fase}{p.jornada != null ? ` · J${p.jornada}` : ''} · {fechaCorta(p.fecha) ? `${fechaCorta(p.fecha)} · ` : ''}{p.hora || '—'} · {p.ubicacion || '—'}
                   </span>
                   <button
                     onClick={() => iniciarEdicion(p)}
                     className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-[#60A5FA] border border-slate-700 hover:border-[#60A5FA]/50 px-2 py-0.5 rounded transition-all"
                   >
-                    ✏ Editar hora/pista
+                    ✏ Editar jornada/hora/pista
                   </button>
                 </div>
               )}
@@ -182,7 +191,36 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
             {/* Editor hora/pista */}
             {estaEditando && (
               <div className="bg-slate-800/40 border border-slate-700 rounded-xl p-4 space-y-4">
-                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Editar horario y pista</p>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400">Editar jornada, horario y pista</p>
+
+                {/* Jornada (solo partidos de liguilla suelen tenerla) */}
+                <div className="flex items-center gap-3">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Jornada</label>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditJornada((j) => String(Math.max(1, (parseInt(j, 10) || 1) - 1)))}
+                      className="w-8 h-9 bg-black border border-slate-600 rounded-lg text-slate-300 font-black hover:border-[#60A5FA] transition-colors"
+                    >−</button>
+                    <input
+                      type="number"
+                      min="1"
+                      value={editJornada}
+                      onChange={(e) => { setEditJornada(e.target.value); clearError(p.id); }}
+                      placeholder="—"
+                      className="w-16 h-9 bg-black border border-slate-600 rounded-lg text-center text-white font-black focus:border-[#60A5FA] outline-none transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEditJornada((j) => String((parseInt(j, 10) || 0) + 1))}
+                      className="w-8 h-9 bg-black border border-slate-600 rounded-lg text-slate-300 font-black hover:border-[#60A5FA] transition-colors"
+                    >+</button>
+                  </div>
+                  {p.jornada != null && editJornada !== '' && parseInt(editJornada, 10) !== p.jornada && (
+                    <span className="text-[10px] text-amber-400 font-bold uppercase tracking-widest">J{p.jornada} → J{editJornada}</span>
+                  )}
+                </div>
+
                 <HoraUbicacionPicker
                   hora={editHora}
                   ubicacion={editUbicacion}

@@ -67,31 +67,41 @@ const SEDES_POR_DEPORTE = {
   futsal: ['Pista Exterior', 'Pabellón'],
   padel:  ['Pista 1', 'Pista 2'],
 };
-// Franjas horarias fijas por deporte. Con 2 sedes, la capacidad por jornada es
-// franjas × sedes: futsal 2×2 = 4 partidos/jornada; pádel 3×2 = 6 partidos/jornada.
-const HORARIOS_POR_DEPORTE = {
-  futsal: ['21:00', '22:00'],
-  padel:  ['19:00', '20:30', '22:00'],
+// Franjas horarias automáticas por deporte (hasta 3 franjas, 2 sedes por franja).
+// El admin solo elige cuántos partidos por jornada (1-6); la web asigna hora y
+// sede: partidos 1-2 en la franja 1, 3-4 en la franja 2, 5-6 en la franja 3.
+const FRANJAS_BASE = {
+  futsal: ['20:30', '21:30', '22:30'],
+  padel:  ['19:30', '21:00', '22:30'],
 };
+const PARTIDOS_JORNADA_DEFECTO = 4;
+
+/**
+ * Franjas efectivas según deporte/categoría/capacidad.
+ * Caso especial: pádel ORO con 1 solo partido por jornada → 21:00.
+ */
+function franjasPara(deporte, categoria, capacidad) {
+  if (deporte === 'padel' && categoria === 'oro' && capacidad === 1) return ['21:00'];
+  return FRANJAS_BASE[deporte] ?? FRANJAS_BASE.futsal;
+}
 
 /**
  * Asigna hora y sede a TODOS los partidos de la liguilla, para cualquier número
  * de grupos (futsal o pádel).
  *
- * Los partidos se empaquetan en jornadas de capacidad fija (4 en futsal, 6 en
- * pádel): en cada jornada se ocupan las 2 sedes en cada franja horaria (2
- * partidos por franja). Un equipo/pareja juega como máximo una vez por jornada,
+ * Los partidos se empaquetan en jornadas de capacidad fija (1-6 partidos, la
+ * elige el admin): en cada franja horaria se ocupan las 2 sedes (2 partidos a
+ * la vez). Un equipo/pareja juega como máximo una vez por jornada,
  * así nunca coincide consigo mismo en dos horarios. Los partidos que no llenan
  * una jornada completa se colocan en una jornada extra final.
  *
  * Los equipos que descansan (byes por número impar) ya vienen excluidos de
  * `jornadasPorGrupo`.
  */
-function asignarHorario(jornadasPorGrupo, deporte = 'futsal') {
-  const sedes    = SEDES_POR_DEPORTE[deporte]    ?? SEDES_POR_DEPORTE.futsal;
-  const horarios = HORARIOS_POR_DEPORTE[deporte] ?? HORARIOS_POR_DEPORTE.futsal;
+function asignarHorario(jornadasPorGrupo, deporte = 'futsal', capacidad = PARTIDOS_JORNADA_DEFECTO, horariosOverride = null) {
+  const sedes    = SEDES_POR_DEPORTE[deporte]  ?? SEDES_POR_DEPORTE.futsal;
+  const horarios = horariosOverride ?? FRANJAS_BASE[deporte] ?? FRANJAS_BASE.futsal;
   const V = sedes.length;
-  const capacidad = horarios.length * V;
 
   // Todos los cruces de la liguilla, recorriendo las rondas e intercalando
   // grupos (A1, B1, C1, A2…) para repartir el reparto entre jornadas.
@@ -149,6 +159,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
   const [categoria,   setCategoria]   = useState('global'); // solo pádel: oro | plata | global
   const [textoEquipos,setTextoEquipos]= useState('');
   const [tamGrupo,    setTamGrupo]    = useState(4);
+  const [partidosJornada, setPartidosJornada] = useState(PARTIDOS_JORNADA_DEFECTO); // 1-6
   const [estado,      setEstado]      = useState('Inscripciones abiertas');
   const [fase,        setFase]        = useState('idle'); // idle | preview | loading | done | error
   const [preview,     setPreview]     = useState(null);   // { grupos: [[nombres]] }
@@ -183,7 +194,10 @@ export default function CreadorTorneo({ onTorneoCreado }) {
     const mezclados      = shuffle(equipos);
     const grupos         = repartirEnGrupos(mezclados, tamGrupo);
     const jornadasPorGrupo = grupos.map((g) => generarCalendarioJornadas(g));
-    const calendario     = asignarHorario(jornadasPorGrupo, deporte);
+    const calendario     = asignarHorario(
+      jornadasPorGrupo, deporte, partidosJornada,
+      franjasPara(deporte, deporte === 'padel' ? categoria : null, partidosJornada)
+    );
 
     setPreview({ grupos, jornadasPorGrupo, calendario });
     setFase('preview');
@@ -239,9 +253,9 @@ export default function CreadorTorneo({ onTorneoCreado }) {
       const { error: e4 } = await supabase.from('grupo_participantes').insert(asignaciones);
       if (e4) throw new Error('Error asignando participantes: ' + e4.message);
 
-      // 5. Generar partidos de liga a una vuelta con hora y sede asignadas
-      //    automáticamente (rejilla sede × franja) para cualquier nº de grupos.
-      const partidos = asignarHorario(preview.jornadasPorGrupo, deporte).map((p) => ({
+      // 5. Insertar los partidos exactamente como se mostraron en la vista previa
+      //    (hora y sede ya asignadas por rejilla sede × franja).
+      const partidos = preview.calendario.map((p) => ({
         torneo_id:    tId,
         fase:         'grupos',
         jornada:      p.jornada,
@@ -268,6 +282,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
   const reset = () => {
     setNombre(''); setDeporte('futsal'); setCategoria('global'); setTextoEquipos('');
     setTamGrupo(4); setEstado('Inscripciones abiertas');
+    setPartidosJornada(PARTIDOS_JORNADA_DEFECTO);
     setFase('idle'); setPreview(null); setError('');
   };
 
@@ -393,6 +408,33 @@ export default function CreadorTorneo({ onTorneoCreado }) {
             <div className="flex justify-between text-[10px] text-slate-600 font-bold uppercase mt-1">
               <span>3</span><span>4</span><span>5</span><span>6</span>
             </div>
+          </div>
+
+          {/* Partidos por jornada (horario automático) */}
+          <div>
+            <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
+              Partidos por jornada: <span className="text-[#60A5FA]">{partidosJornada}</span>
+            </label>
+            <div className="grid grid-cols-6 gap-2">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setPartidosJornada(n)}
+                  className={`py-2.5 rounded-xl text-sm font-black border transition-all ${
+                    partidosJornada === n
+                      ? 'bg-[#60A5FA] text-black border-[#60A5FA] shadow-lg'
+                      : 'bg-[#0f172a] text-slate-400 border-slate-700 hover:border-slate-500'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
+              Horario automático: {franjasPara(deporte, deporte === 'padel' ? categoria : null, partidosJornada).slice(0, Math.ceil(partidosJornada / 2)).join(' / ')}
+              {partidosJornada > 1 && <> — 2 partidos a la vez ({SEDES_POR_DEPORTE[deporte].join(' y ')})</>}.
+            </p>
           </div>
 
           {/* Textarea equipos */}
