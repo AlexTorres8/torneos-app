@@ -72,17 +72,27 @@ const SEDES_POR_DEPORTE = {
 // sede: partidos 1-2 en la franja 1, 3-4 en la franja 2, 5-6 en la franja 3.
 const FRANJAS_BASE = {
   futsal: ['20:30', '21:30', '22:30'],
-  padel:  ['19:30', '21:00', '22:30'],
+  padel:  ['20:00', '21:30', '23:00'],
 };
 const PARTIDOS_JORNADA_DEFECTO = 4;
 
 /**
  * Franjas efectivas según deporte/categoría/capacidad.
- * Caso especial: pádel ORO con 1 solo partido por jornada → 21:00.
+ * Caso especial: pádel ORO con 1 solo partido por jornada → 21:30.
  */
 function franjasPara(deporte, categoria, capacidad) {
-  if (deporte === 'padel' && categoria === 'oro' && capacidad === 1) return ['21:00'];
+  if (deporte === 'padel' && categoria === 'oro' && capacidad === 1) return ['21:30'];
   return FRANJAS_BASE[deporte] ?? FRANJAS_BASE.futsal;
+}
+
+/**
+ * Cuántos partidos simultáneos por franja horaria. Por defecto se ocupan las
+ * 2 sedes a la vez; en pádel con 2 partidos por jornada, cada partido va en
+ * su propia franja (20:00 y 21:30) en lugar de jugarse a la vez.
+ */
+function partidosPorFranja(deporte, capacidad) {
+  if (deporte === 'padel' && capacidad === 2) return 1;
+  return (SEDES_POR_DEPORTE[deporte] ?? SEDES_POR_DEPORTE.futsal).length;
 }
 
 /**
@@ -102,6 +112,7 @@ function asignarHorario(jornadasPorGrupo, deporte = 'futsal', capacidad = PARTID
   const sedes    = SEDES_POR_DEPORTE[deporte]  ?? SEDES_POR_DEPORTE.futsal;
   const horarios = horariosOverride ?? FRANJAS_BASE[deporte] ?? FRANJAS_BASE.futsal;
   const V = sedes.length;
+  const porFranja = partidosPorFranja(deporte, capacidad);
 
   // Todos los cruces de la liguilla, recorriendo las rondas e intercalando
   // grupos (A1, B1, C1, A2…) para repartir el reparto entre jornadas.
@@ -143,7 +154,7 @@ function asignarHorario(jornadasPorGrupo, deporte = 'futsal', capacidad = PARTID
       partidos.push({
         ...cruce,
         jornada:   ji + 1,
-        hora:      horarios[Math.floor(p / V)] ?? horarios[horarios.length - 1],
+        hora:      horarios[Math.floor(p / porFranja)] ?? horarios[horarios.length - 1],
         ubicacion: sedes[p % V],
       });
     });
@@ -432,8 +443,8 @@ export default function CreadorTorneo({ onTorneoCreado }) {
               ))}
             </div>
             <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
-              Horario automático: {franjasPara(deporte, deporte === 'padel' ? categoria : null, partidosJornada).slice(0, Math.ceil(partidosJornada / 2)).join(' / ')}
-              {partidosJornada > 1 && <> — 2 partidos a la vez ({SEDES_POR_DEPORTE[deporte].join(' y ')})</>}.
+              Horario automático: {franjasPara(deporte, deporte === 'padel' ? categoria : null, partidosJornada).slice(0, Math.ceil(partidosJornada / partidosPorFranja(deporte, partidosJornada))).join(' / ')}
+              {partidosJornada > 1 && partidosPorFranja(deporte, partidosJornada) > 1 && <> — 2 partidos a la vez ({SEDES_POR_DEPORTE[deporte].join(' y ')})</>}.
             </p>
           </div>
 
