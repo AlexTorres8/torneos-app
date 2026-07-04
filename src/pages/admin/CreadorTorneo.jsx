@@ -167,7 +167,7 @@ function asignarHorario(jornadasPorGrupo, deporte = 'futsal', capacidad = PARTID
 export default function CreadorTorneo({ onTorneoCreado }) {
   const [nombre,      setNombre]      = useState('');
   const [deporte,     setDeporte]     = useState('futsal');
-  const [categoria,   setCategoria]   = useState('global'); // solo pádel: oro | plata | global
+  const [categoria,   setCategoria]   = useState('oro'); // solo pádel: oro | plata
   const [textoEquipos,setTextoEquipos]= useState('');
   const [tamGrupo,    setTamGrupo]    = useState(4);
   const [partidosJornada, setPartidosJornada] = useState(PARTIDOS_JORNADA_DEFECTO); // 1-6
@@ -291,7 +291,7 @@ export default function CreadorTorneo({ onTorneoCreado }) {
 
   // ── Reset ──────────────────────────────────────────────────────────────────
   const reset = () => {
-    setNombre(''); setDeporte('futsal'); setCategoria('global'); setTextoEquipos('');
+    setNombre(''); setDeporte('futsal'); setCategoria('oro'); setTextoEquipos('');
     setTamGrupo(4); setEstado('Inscripciones abiertas');
     setPartidosJornada(PARTIDOS_JORNADA_DEFECTO);
     setFase('idle'); setPreview(null); setError('');
@@ -380,11 +380,10 @@ export default function CreadorTorneo({ onTorneoCreado }) {
               <label className="block text-xs font-black uppercase tracking-widest text-slate-400 mb-2">
                 Categoría
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  { v: 'global', l: '🌐 Global' },
-                  { v: 'oro',    l: '🏆 Oro'    },
-                  { v: 'plata',  l: '🥈 Plata'  },
+                  { v: 'oro',   l: '🏆 Oro'   },
+                  { v: 'plata', l: '🥈 Plata' },
                 ].map(({ v, l }) => (
                   <button
                     key={v}
@@ -400,9 +399,6 @@ export default function CreadorTorneo({ onTorneoCreado }) {
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-slate-500 mt-1.5 font-medium">
-                Global: torneo mixto (oro + plata) con pocos participantes.
-              </p>
             </div>
           )}
 

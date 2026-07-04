@@ -8,7 +8,7 @@ export default function TorneosPadel() {
   const [torneos,     setTorneos]     = useState([]);
   const [cargando,    setCargando]    = useState(true);
   const [error,       setError]       = useState('');
-  const [cat,         setCat]         = useState('global'); // global | oro | plata
+  const [cat,         setCat]         = useState('oro'); // oro | plata
   const [verNormativa,setVerNormativa]= useState(false);
 
   const cargar = async () => {
@@ -54,14 +54,6 @@ export default function TorneosPadel() {
 
           {/* Tabs categoría */}
           <div className="flex bg-slate-800/80 p-1.5 rounded-xl mb-6 border border-slate-700 shadow-inner">
-            <button
-              onClick={() => setCat('global')}
-              className={`flex-1 py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-lg transition-all ${
-                cat === 'global' ? 'bg-[#60A5FA] text-black shadow-lg scale-[1.02]' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🌐 Global
-            </button>
             <button
               onClick={() => setCat('oro')}
               className={`flex-1 py-3 text-xs md:text-sm font-black uppercase tracking-widest rounded-lg transition-all ${

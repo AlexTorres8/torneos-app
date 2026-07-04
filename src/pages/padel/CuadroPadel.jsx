@@ -32,6 +32,13 @@ const ESQ_CUARTOS = [
   { id:'c3', hora:'22:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'G. Playoff 3'} },
   { id:'c4', hora:'22:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo D'}, visitante:{nombre:'G. Playoff 4'} },
 ];
+// PLATA (sin ronda previa): cuartos directos con 1º y 2º de cada grupo.
+const ESQ_CUARTOS_PLATA = [
+  { id:'c1', hora:'20:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'2º Grupo B'} },
+  { id:'c2', hora:'20:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo C'}, visitante:{nombre:'2º Grupo D'} },
+  { id:'c3', hora:'21:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Grupo A'} },
+  { id:'c4', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo D'}, visitante:{nombre:'2º Grupo C'} },
+];
 const ESQ_SEMIS = [
   { id:'s1', hora:'20:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
   { id:'s2', hora:'22:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
@@ -118,7 +125,7 @@ export default function CuadroPadel() {
         ...(!esPlata || playoffs.length > 0
           ? [{ label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS }]
           : []),
-        { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : ESQ_CUARTOS  },
+        { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : (esPlata ? ESQ_CUARTOS_PLATA : ESQ_CUARTOS) },
         { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : ESQ_SEMIS    },
         { label: 'Gran Final',   partidos: finales.length  > 0 ? finales  : ESQ_FINAL    },
       ];
