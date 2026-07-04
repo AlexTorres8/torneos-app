@@ -9,6 +9,7 @@ import { Skeleton }          from '../../components/ui/Skeleton';
 import { calcularStats }     from '../../hooks/useCalcStats';
 import { ordenarClasificacion } from '../../lib/clasificacion';
 import { fechaDiaMes }       from '../../lib/fecha';
+import { construirRondas, fasesPorDefecto } from '../../lib/esquemasPreview';
 
 /** Etiqueta de fecha de una jornada: una fecha, o rango si hay varias. */
 function fechaJornada(partidos, jornada) {
@@ -19,57 +20,6 @@ function fechaJornada(partidos, jornada) {
   if (fechas.length === 1) return fechaDiaMes(fechas[0]);
   return `${fechaDiaMes(fechas[0])} – ${fechaDiaMes(fechas[fechas.length - 1])}`;
 }
-
-const ESQ_PLAYOFFS = [
-  { id:'p1', hora:'20:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo C'} },
-  { id:'p2', hora:'20:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'2º Grupo B'}, visitante:{nombre:'3º Grupo D'} },
-  { id:'p3', hora:'22:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'2º Grupo C'}, visitante:{nombre:'3º Grupo A'} },
-  { id:'p4', hora:'22:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'2º Grupo D'}, visitante:{nombre:'3º Grupo B'} },
-];
-const ESQ_CUARTOS = [
-  { id:'c1', hora:'20:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'G. Playoff 1'} },
-  { id:'c2', hora:'20:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo C'}, visitante:{nombre:'G. Playoff 2'} },
-  { id:'c3', hora:'22:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'G. Playoff 3'} },
-  { id:'c4', hora:'22:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo D'}, visitante:{nombre:'G. Playoff 4'} },
-];
-// PLATA (sin ronda previa): cuartos directos con 1º y 2º de cada grupo.
-const ESQ_CUARTOS_PLATA = [
-  { id:'c1', hora:'20:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'2º Grupo B'} },
-  { id:'c2', hora:'20:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo C'}, visitante:{nombre:'2º Grupo D'} },
-  { id:'c3', hora:'21:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Grupo A'} },
-  { id:'c4', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo D'}, visitante:{nombre:'2º Grupo C'} },
-];
-const ESQ_SEMIS = [
-  { id:'s1', hora:'20:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
-  { id:'s2', hora:'22:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
-];
-// PLATA: semi 1 a las 20:00 (Pista 1) y semi 2 a las 21:30 (Pista 2).
-const ESQ_SEMIS_PLATA = [
-  { id:'s1', hora:'20:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
-  { id:'s2', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
-];
-const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
-
-// Esqueleto reducido para torneos de categoría ORO: ronda previa de 2 partidos,
-// semifinales y gran final (sin cuartos).
-const ESQ_PREVIA_ORO = [
-  { id:'p1', hora:'19:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo B'} },
-  { id:'p2', hora:'19:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'2º Grupo B'}, visitante:{nombre:'3º Grupo A'} },
-];
-const ESQ_SEMIS_ORO = [
-  { id:'s1', hora:'21:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'G. Previa 1'} },
-  { id:'s2', hora:'21:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'G. Previa 2'} },
-];
-
-// Oro reducido (≤6 parejas): sin ronda previa, semifinales directas y final.
-const ESQ_SEMIS_ORO_CRUCE = [ // 2 grupos: cruce 1º-2º
-  { id:'s1', hora:'21:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'2º Grupo B'} },
-  { id:'s2', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Grupo A'} },
-];
-const ESQ_SEMIS_ORO_UNICO = [ // grupo único: 1º-4º y 2º-3º
-  { id:'s1', hora:'21:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'4º Grupo A'} },
-  { id:'s2', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo A'} },
-];
 
 const NOMBRES_JORNADAS = { 1:'Jornada 1', 2:'Jornada 2', 3:'Jornada 3', 4:'Jornada 4', 5:'Jornada 5', 6:'Jornada 6' };
 
@@ -102,38 +52,16 @@ export default function CuadroPadel() {
   const semis    = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => a.jornada - b.jornada), [partidos]);
   const finales  = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
 
-  // Oro con ≤6 parejas: cuadro mínimo sin ronda previa (semis directas y final).
+  // Nº de parejas: la estructura por defecto de oro depende de él (oro reducido ≤6).
   const totalParejas = grupos.reduce((n, g) => n + (g.grupo_participantes?.length ?? 0), 0);
-  const oroReducido  = esOro && grupos.length > 0 && totalParejas <= 6;
 
-  // En ORO el cuadro es reducido: previa (2 partidos), semis y final, sin cuartos.
-  // Si un torneo oro tuviera cuartos reales creados, se muestran igualmente.
-  const rondas = oroReducido
-    ? [
-        // Sin ronda previa; si existieran partidos reales de previa o cuartos,
-        // se muestran igualmente para no ocultar datos.
-        ...(playoffs.length > 0 ? [{ label: 'Ronda Previa', partidos: playoffs }] : []),
-        ...(cuartos.length  > 0 ? [{ label: 'Cuartos',      partidos: cuartos  }] : []),
-        { label: 'Semifinales', partidos: semis.length > 0 ? semis : (grupos.length === 1 ? ESQ_SEMIS_ORO_UNICO : ESQ_SEMIS_ORO_CRUCE) },
-        { label: 'Gran Final',  partidos: finales.length > 0 ? finales : ESQ_FINAL },
-      ]
-    : esOro
-    ? [
-        { label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PREVIA_ORO },
-        ...(cuartos.length > 0 ? [{ label: 'Cuartos', partidos: cuartos }] : []),
-        { label: 'Semifinales',  partidos: semis.length   > 0 ? semis   : ESQ_SEMIS_ORO },
-        { label: 'Gran Final',   partidos: finales.length > 0 ? finales : ESQ_FINAL },
-      ]
-    : [
-        // En PLATA no hay ronda previa: cuartos, semis y final. Si un torneo
-        // plata tuviera partidos de previa reales creados, se muestran igualmente.
-        ...(!esPlata || playoffs.length > 0
-          ? [{ label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS }]
-          : []),
-        { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : (esPlata ? ESQ_CUARTOS_PLATA : ESQ_CUARTOS) },
-        { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : (esPlata ? ESQ_SEMIS_PLATA : ESQ_SEMIS) },
-        { label: 'Gran Final',   partidos: finales.length  > 0 ? finales  : ESQ_FINAL    },
-      ];
+  // Fases reales siempre visibles; el resto se previsualiza según la
+  // personalización del torneo (esquema_preview) o el esquema por defecto.
+  const rondas = construirRondas(
+    torneo,
+    { playoffs, cuartos, semis, final: finales },
+    fasesPorDefecto({ deporte: 'padel', ...torneo }, { nGrupos: grupos.length, totalParejas })
+  );
 
   const compartir = () => {
     const url = window.location.href;

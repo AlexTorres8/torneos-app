@@ -48,7 +48,7 @@ export function useRealtimeTorneo(torneoId) {
         .eq('torneo_id', torneoId),
       supabase
         .from('torneos')
-        .select('id, nombre, deporte, categoria, formato, estado')
+        .select('id, nombre, deporte, categoria, formato, estado, esquema_preview')
         .eq('id', torneoId)
         .maybeSingle(),
     ]);

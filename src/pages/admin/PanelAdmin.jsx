@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Target, Wand2, Zap, Trophy, Share2, LogOut, Filter, Trash2, CheckCircle, Pencil, ShieldAlert } from 'lucide-react';
+import { Target, Wand2, Zap, Trophy, Share2, LogOut, Filter, Trash2, CheckCircle, Pencil, ShieldAlert, Eye } from 'lucide-react';
 import { supabase } from '../../supabase';
 import ResultadosPendientes  from './ResultadosPendientes';
 import PartidosFinalizados   from './PartidosFinalizados';
@@ -9,12 +9,14 @@ import ExportarClasificacion from './ExportarClasificacion';
 import GestorSanciones       from './GestorSanciones';
 import EliminarTorneo        from './EliminarTorneo';
 import EditarEstadoTorneo    from './EditarEstadoTorneo';
+import EditorPreviewCuadro   from './EditorPreviewCuadro';
 import { generarTorneo24h }  from '../../lib/generadores/generador24h';
 
 const TABS = [
   { id: 'resultados', label: 'Resultados', Icon: Target      },
   { id: 'crear',      label: 'Crear',      Icon: Wand2       },
   { id: 'fases',      label: 'Fases',      Icon: Trophy      },
+  { id: 'cuadro',     label: 'Cuadro',     Icon: Eye         },
   { id: 'exportar',   label: 'Exportar',   Icon: Share2      },
   { id: 'sanciones',  label: 'Sanciones',  Icon: ShieldAlert },
   { id: 'generadores',label: 'Auto',       Icon: Zap         },
@@ -40,6 +42,7 @@ const TAB_INFO = {
   resultados:  { titulo: 'Resultados',            sub: 'Introduce los marcadores de los partidos jugados.' },
   crear:       { titulo: 'Crear Nuevo Torneo',     sub: 'Pega los equipos y genera el calendario automáticamente.' },
   fases:       { titulo: 'Gestión Fases Finales',  sub: 'Crea los cruces de cuartos, semifinales y final manualmente.' },
+  cuadro:      { titulo: 'Previsualización Cuadro', sub: 'Edita horas, fechas, pistas y etiquetas del cuadro previsualizado (antes de crear los partidos reales).' },
   exportar:    { titulo: 'Exportar Clasificación', sub: 'Genera el texto para WhatsApp o el PDF completo del torneo.' },
   sanciones:   { titulo: 'Sanciones',              sub: 'Registra tarjetas y expulsiones de jugadores por torneo.' },
   generadores: { titulo: 'Generadores Automáticos',sub: 'Torneos predefinidos: se crean con un solo clic.' },
@@ -161,6 +164,7 @@ export default function PanelAdmin() {
             {tab === 'resultados'  && <Target  className="text-[#60A5FA]" size={22} />}
             {tab === 'crear'       && <Wand2   className="text-[#60A5FA]" size={22} />}
             {tab === 'fases'       && <Trophy  className="text-[#60A5FA]" size={22} />}
+            {tab === 'cuadro'      && <Eye     className="text-[#60A5FA]" size={22} />}
             {tab === 'exportar'    && <Share2  className="text-[#60A5FA]" size={22} />}
             {tab === 'sanciones'   && <ShieldAlert className="text-[#60A5FA]" size={22} />}
             {tab === 'generadores' && <Zap     className="text-[#60A5FA]" size={22} />}
@@ -235,6 +239,9 @@ export default function PanelAdmin() {
 
         {/* ── FASES FINALES ── */}
         {tab === 'fases' && <GestorFaseFinal onPartidoCreado={cargarDatos} />}
+
+        {/* ── PREVISUALIZACIÓN CUADRO ── */}
+        {tab === 'cuadro' && <EditorPreviewCuadro />}
 
         {/* ── EXPORTAR ── */}
         {tab === 'exportar' && <ExportarClasificacion />}

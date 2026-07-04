@@ -9,23 +9,12 @@ import { Skeleton }          from '../../components/ui/Skeleton';
 import { SancionesTorneo }   from '../../components/ui/SancionesTorneo';
 import { calcularStats }     from '../../hooks/useCalcStats';
 import { ordenarClasificacion } from '../../lib/clasificacion';
-
-const ESQ_CUARTOS = [
-  { id:'c1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'Mejor 3º'}    },
-  { id:'c2', hora:'Por conf.', ubicacion:'Pista',    estado:'pendiente', local:{nombre:'2º Grupo C'}, visitante:{nombre:'2º Grupo B'}   },
-  { id:'c3', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'2º Mejor 3º'}  },
-  { id:'c4', hora:'Por conf.', ubicacion:'Pista',    estado:'pendiente', local:{nombre:'1º Grupo C'}, visitante:{nombre:'2º Grupo A'}   },
-];
-const ESQ_SEMIS = [
-  { id:'s1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
-  { id:'s2', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
-];
-const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
+import { construirRondas, fasesPorDefecto } from '../../lib/esquemasPreview';
 
 export default function CuadroFutsal24H() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
-  const { grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
+  const { torneo, grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
 
   const clasificaciones = useMemo(() =>
     grupos.map(g => ({
@@ -56,16 +45,17 @@ export default function CuadroFutsal24H() {
     });
   }, [partidos]);
 
-  const pGrupos = useMemo(() => partidos.filter(p => p.fase === 'grupos'), [partidos]);
-  const cuartos = useMemo(() => partidos.filter(p => p.fase === 'cuartos').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
-  const semis   = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
-  const finales = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
+  const pGrupos  = useMemo(() => partidos.filter(p => p.fase === 'grupos'), [partidos]);
+  const playoffs = useMemo(() => partidos.filter(p => p.fase === 'playoffs').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
+  const cuartos  = useMemo(() => partidos.filter(p => p.fase === 'cuartos').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
+  const semis    = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => (a.hora??'').localeCompare(b.hora??'')), [partidos]);
+  const finales  = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
 
-  const rondas = [
-    { label: 'Cuartos',     partidos: cuartos.length > 0 ? cuartos : ESQ_CUARTOS },
-    { label: 'Semifinales', partidos: semis.length   > 0 ? semis   : ESQ_SEMIS   },
-    { label: 'Gran Final',  partidos: finales.length > 0 ? finales : ESQ_FINAL   },
-  ];
+  const rondas = construirRondas(
+    torneo,
+    { playoffs, cuartos, semis, final: finales },
+    fasesPorDefecto({ deporte: 'futsal', formato: '24h', ...torneo })
+  );
 
   const compartir = () => {
     const url = window.location.href;

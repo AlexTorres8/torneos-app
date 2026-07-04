@@ -10,6 +10,7 @@ import { SancionesTorneo }   from '../../components/ui/SancionesTorneo';
 import { calcularStats }     from '../../hooks/useCalcStats';
 import { ordenarClasificacion } from '../../lib/clasificacion';
 import { fechaDiaMes }       from '../../lib/fecha';
+import { construirRondas, fasesPorDefecto } from '../../lib/esquemasPreview';
 
 /** Etiqueta de fecha de una jornada: una fecha, o rango si hay varias. */
 function fechaJornada(partidos, jornada) {
@@ -21,24 +22,12 @@ function fechaJornada(partidos, jornada) {
   return `${fechaDiaMes(fechas[0])} – ${fechaDiaMes(fechas[fechas.length - 1])}`;
 }
 
-const ESQ_CUARTOS = [
-  { id:'c1', hora:'21:00', ubicacion:'Pista Ext.', estado:'pendiente', local:{nombre:'1º Grupo A'}, visitante:{nombre:'4º Grupo B'} },
-  { id:'c2', hora:'21:00', ubicacion:'Pabellón',   estado:'pendiente', local:{nombre:'2º Grupo B'}, visitante:{nombre:'3º Grupo A'} },
-  { id:'c3', hora:'22:00', ubicacion:'Pabellón',   estado:'pendiente', local:{nombre:'1º Grupo B'}, visitante:{nombre:'4º Grupo A'} },
-  { id:'c4', hora:'22:00', ubicacion:'Pista Ext.', estado:'pendiente', local:{nombre:'2º Grupo A'}, visitante:{nombre:'3º Grupo B'} },
-];
-const ESQ_SEMIS = [
-  { id:'s1', hora:'21:00', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
-  { id:'s2', hora:'22:00', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
-];
-const ESQ_FINAL = [{ id:'f1', hora:'21:00', ubicacion:'Pabellón', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
-
 const NOMBRES_JORNADAS = { 1:'Jornada 1', 2:'Jornada 2', 3:'Jornada 3', 4:'Jornada 4', 5:'Jornada 5', 6:'Jornada 6' };
 
 export default function CuadroFutsal() {
   const { torneoId } = useParams();
   const navigate = useNavigate();
-  const { grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
+  const { torneo, grupos, partidos, cargando, error, recargar } = useRealtimeTorneo(torneoId);
 
   const clasificaciones = useMemo(() =>
     grupos.map((g) => ({
@@ -57,15 +46,16 @@ export default function CuadroFutsal() {
     [partidos]
   );
 
-  const cuartos = useMemo(() => partidos.filter(p => p.fase === 'cuartos').sort((a,b) => a.jornada - b.jornada), [partidos]);
-  const semis   = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => a.jornada - b.jornada), [partidos]);
-  const finales = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
+  const playoffs = useMemo(() => partidos.filter(p => p.fase === 'playoffs').sort((a,b) => a.jornada - b.jornada), [partidos]);
+  const cuartos  = useMemo(() => partidos.filter(p => p.fase === 'cuartos').sort((a,b) => a.jornada - b.jornada), [partidos]);
+  const semis    = useMemo(() => partidos.filter(p => p.fase === 'semis').sort((a,b) => a.jornada - b.jornada), [partidos]);
+  const finales  = useMemo(() => partidos.filter(p => p.fase === 'final'), [partidos]);
 
-  const rondas = [
-    { label: 'Cuartos de Final', partidos: cuartos.length > 0 ? cuartos : ESQ_CUARTOS },
-    { label: 'Semifinales',      partidos: semis.length   > 0 ? semis   : ESQ_SEMIS   },
-    { label: 'Gran Final',       partidos: finales.length > 0 ? finales : ESQ_FINAL   },
-  ];
+  const rondas = construirRondas(
+    torneo,
+    { playoffs, cuartos, semis, final: finales },
+    fasesPorDefecto({ deporte: 'futsal', ...torneo })
+  );
 
   const compartir = () => {
     const url = window.location.href;
