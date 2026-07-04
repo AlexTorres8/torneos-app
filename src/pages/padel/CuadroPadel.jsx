@@ -43,6 +43,11 @@ const ESQ_SEMIS = [
   { id:'s1', hora:'20:30', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
   { id:'s2', hora:'22:00', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
 ];
+// PLATA: semi 1 a las 20:00 (Pista 1) y semi 2 a las 21:30 (Pista 2).
+const ESQ_SEMIS_PLATA = [
+  { id:'s1', hora:'20:00', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador C1'}, visitante:{nombre:'Ganador C2'} },
+  { id:'s2', hora:'21:30', ubicacion:'Pista 2', estado:'pendiente', local:{nombre:'Ganador C3'}, visitante:{nombre:'Ganador C4'} },
+];
 const ESQ_FINAL = [{ id:'f1', hora:'Por conf.', ubicacion:'Pista 1', estado:'pendiente', local:{nombre:'Ganador Semi 1'}, visitante:{nombre:'Ganador Semi 2'} }];
 
 // Esqueleto reducido para torneos de categoría ORO: ronda previa de 2 partidos,
@@ -126,7 +131,7 @@ export default function CuadroPadel() {
           ? [{ label: 'Ronda Previa', partidos: playoffs.length > 0 ? playoffs : ESQ_PLAYOFFS }]
           : []),
         { label: 'Cuartos',      partidos: cuartos.length  > 0 ? cuartos  : (esPlata ? ESQ_CUARTOS_PLATA : ESQ_CUARTOS) },
-        { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : ESQ_SEMIS    },
+        { label: 'Semifinales',  partidos: semis.length    > 0 ? semis    : (esPlata ? ESQ_SEMIS_PLATA : ESQ_SEMIS) },
         { label: 'Gran Final',   partidos: finales.length  > 0 ? finales  : ESQ_FINAL    },
       ];
 

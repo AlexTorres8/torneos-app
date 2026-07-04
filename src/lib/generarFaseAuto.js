@@ -18,7 +18,13 @@ function getGanador(partido) {
  * Los partidos de origen deben estar ordenados por jornada.
  * Se emparejan de dos en dos: ganador(J1) vs ganador(J2), ganador(J3) vs ganador(J4)…
  */
-function _generarDesdeFaseAnterior(fase, origen, torneoId) {
+// Horarios fijos de las semifinales de pádel PLATA: 20:00 Pista 1 y 21:30 Pista 2.
+const HORARIO_SEMIS_PLATA = [
+  { hora: '20:00', ubicacion: 'Pista 1' },
+  { hora: '21:30', ubicacion: 'Pista 2' },
+];
+
+function _generarDesdeFaseAnterior(fase, origen, torneoId, esPlata = false) {
   if (origen.length % 2 !== 0) {
     throw new Error(`Número impar de partidos en la fase anterior (${origen.length}). No se puede generar ${fase} automáticamente.`);
   }
@@ -34,11 +40,14 @@ function _generarDesdeFaseAnterior(fase, origen, torneoId) {
     pares.push({ etiq: `${g1.nombre} vs ${g2.nombre}`, local: g1, visitante: g2 });
   }
 
-  const insertar = pares.map((p, i) => ({
-    torneo_id: torneoId, fase, jornada: i + 1,
-    hora: null, ubicacion: null, estado: 'pendiente',
-    local_id: p.local.id, visitante_id: p.visitante.id,
-  }));
+  const insertar = pares.map((p, i) => {
+    const horario = (esPlata && fase === 'semis' && HORARIO_SEMIS_PLATA[i]) || { hora: null, ubicacion: null };
+    return {
+      torneo_id: torneoId, fase, jornada: i + 1,
+      hora: horario.hora, ubicacion: horario.ubicacion, estado: 'pendiente',
+      local_id: p.local.id, visitante_id: p.visitante.id,
+    };
+  });
 
   return { fase, preview: pares, insertar };
 }
@@ -111,7 +120,7 @@ export async function calcularFaseAuto(torneoId, deporte) {
       const desc = pendientes.map(p => `${p.local?.nombre ?? '?'} vs ${p.visitante?.nombre ?? '?'}`).join(' · ');
       throw new Error(`Faltan ${pendientes.length} cuarto(s) de final por finalizar: ${desc}`);
     }
-    return _generarDesdeFaseAnterior('semis', cuartos, torneoId);
+    return _generarDesdeFaseAnterior('semis', cuartos, torneoId, esPlata);
   }
 
   // ── 5. Generar cuartos desde playoffs finalizados (pádel) ─────────────────
@@ -234,11 +243,14 @@ export async function calcularFaseAuto(torneoId, deporte) {
     throw new Error('No hay suficientes resultados finalizados para determinar los clasificados.');
   }
 
-  const insertar = pares.map((p, i) => ({
-    torneo_id: torneoId, fase, jornada: i + 1,
-    hora: null, ubicacion: null, estado: 'pendiente',
-    local_id: p.local.id, visitante_id: p.visitante.id,
-  }));
+  const insertar = pares.map((p, i) => {
+    const horario = (esPlata && fase === 'semis' && HORARIO_SEMIS_PLATA[i]) || { hora: null, ubicacion: null };
+    return {
+      torneo_id: torneoId, fase, jornada: i + 1,
+      hora: horario.hora, ubicacion: horario.ubicacion, estado: 'pendiente',
+      local_id: p.local.id, visitante_id: p.visitante.id,
+    };
+  });
 
   return { fase, preview: pares, insertar };
 }
