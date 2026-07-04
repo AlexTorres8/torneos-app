@@ -67,7 +67,7 @@ export default function LoginAdmin() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 autoComplete="email"
-                placeholder="admin@activafitness.com"
+                placeholder="admin@activafitnessagost.es"
                 className="w-full bg-[#0f172a] border border-slate-700 rounded-xl pl-9 pr-4 py-3 text-white text-sm font-medium focus:border-[#60A5FA] outline-none transition-colors"
               />
             </div>

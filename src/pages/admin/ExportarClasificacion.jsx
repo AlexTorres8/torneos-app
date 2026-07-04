@@ -130,7 +130,7 @@ export default function ExportarClasificacion() {
         lineas.push('');
       }
 
-      lineas.push(`_Actualizado desde activafitness.es_`);
+      lineas.push(`_Actualizado desde activafitnessagost.es_`);
 
       setTexto(lineas.join('\n'));
     } catch (err) {

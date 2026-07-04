@@ -164,7 +164,7 @@ export function generarPdfTorneo({ torneo, grupos, partidos, sanciones = [] }) {
     doc.setFontSize(8);
     doc.setTextColor(150);
     doc.text(
-      `activafitness.es · ${new Date().toLocaleDateString('es-ES')} · Página ${i}/${total}`,
+      `activafitnessagost.es · ${new Date().toLocaleDateString('es-ES')} · Página ${i}/${total}`,
       margin,
       doc.internal.pageSize.getHeight() - 20
     );

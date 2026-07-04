@@ -18,7 +18,7 @@ export default function AvisoLegal() {
         </Section>
 
         <Section titulo="2. Objeto y ámbito de aplicación">
-          <p>El presente Aviso Legal regula el acceso y uso del sitio web <strong>activafitness.es</strong> (en adelante, «el sitio web»), cuya titularidad corresponde a Activa Fitness Agost.</p>
+          <p>El presente Aviso Legal regula el acceso y uso del sitio web <strong>activafitnessagost.es</strong> (en adelante, «el sitio web»), cuya titularidad corresponde a Activa Fitness Agost.</p>
           <p className="mt-2">El acceso al sitio web implica la aceptación plena y sin reservas de las presentes condiciones.</p>
         </Section>
 

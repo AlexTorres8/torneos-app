@@ -5,4 +5,4 @@ Allow: /
 Disallow: /admin
 
 # Sitemap
-Sitemap: https://activafitness.es/sitemap.xml
+Sitemap: https://activafitnessagost.es/sitemap.xml

@@ -1,7 +1,7 @@
 import { Helmet } from 'react-helmet-async';
 
 const BASE_TITLE = 'Activa Fitness Agost';
-const BASE_URL   = 'https://activafitness.es';
+const BASE_URL   = 'https://activafitnessagost.es';
 const BASE_IMAGE = `${BASE_URL}/fondo-gym.jpg`;
 const BASE_DESC  = 'Centro deportivo en Agost con torneos oficiales de Fútbol Sala y Pádel. Clasificaciones y resultados en tiempo real.';
 
