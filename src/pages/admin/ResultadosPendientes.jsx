@@ -90,15 +90,24 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
     }
     const jornadaFinal = jornadaNum ?? actual?.jornada ?? null;
     if (editHora && editUbicacion) {
+      // Conflicto = mismo día + hora + pista. Si alguno de los dos tiene
+      // fecha se comparan fechas (un aplazado a otro día no choca aunque
+      // comparta jornada y hora); sin fechas se compara por jornada.
+      const mismoDia = (p) => {
+        const fEdit = editFecha || null;
+        const fOtro = p.fecha   || null;
+        if (fEdit || fOtro) return fEdit === fOtro;
+        return p.jornada === jornadaFinal;
+      };
       const conflicto = partidos.find(p =>
         p.id !== id &&
         p.torneo_id === actual?.torneo_id &&
-        p.jornada  === jornadaFinal &&
+        mismoDia(p) &&
         p.hora     === editHora &&
         p.ubicacion === editUbicacion
       );
       if (conflicto) {
-        setError(id, `Conflicto: ${conflicto.local?.nombre} vs ${conflicto.visitante?.nombre} ya ocupa ${editHora} en ${editUbicacion} (Jornada ${conflicto.jornada}).`);
+        setError(id, `Conflicto: ${conflicto.local?.nombre} vs ${conflicto.visitante?.nombre} ya ocupa ${editHora} en ${editUbicacion} el mismo día (Jornada ${conflicto.jornada}).`);
         return;
       }
     }
