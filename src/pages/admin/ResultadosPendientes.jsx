@@ -13,6 +13,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
   const [editUbicacion, setEditUbicacion] = useState('');
   const [editFecha,     setEditFecha]     = useState('');
   const [editJornada,   setEditJornada]   = useState('');
+  const [editAplazado,  setEditAplazado]  = useState(false);
   const [confirmando,   setConfirmando]   = useState(null);
   const [errores,       setErrores]       = useState({});
   const [finalizados,   setFinalizados]   = useState([]);
@@ -76,6 +77,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
     setEditUbicacion(p.ubicacion || '');
     setEditFecha(p.fecha || '');
     setEditJornada(p.jornada != null ? String(p.jornada) : '');
+    setEditAplazado(!!p.aplazado);
   };
 
   const guardarEdicion = async (id) => {
@@ -100,7 +102,7 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
         return;
       }
     }
-    const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null, fecha: editFecha || null, jornada: jornadaFinal }).eq('id', id);
+    const { error } = await supabase.from('partidos').update({ hora: editHora || null, ubicacion: editUbicacion || null, fecha: editFecha || null, jornada: jornadaFinal, aplazado: editAplazado }).eq('id', id);
     if (error) { setError(id, 'Error al guardar.'); return; }
     setEditando(null);
     onActualizar();
@@ -178,6 +180,11 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
                   <span className="text-slate-400 text-xs font-medium uppercase tracking-widest">
                     {p.fase}{p.jornada != null ? ` · J${p.jornada}` : ''} · {fechaCorta(p.fecha) ? `${fechaCorta(p.fecha)} · ` : ''}{p.hora || '—'} · {p.ubicacion || '—'}
                   </span>
+                  {p.aplazado && (
+                    <span className="text-slate-400 text-[9px] font-black uppercase tracking-widest border border-slate-700 px-2 py-0.5 rounded-full">
+                      Aplazado
+                    </span>
+                  )}
                   <button
                     onClick={() => iniciarEdicion(p)}
                     className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-[#60A5FA] border border-slate-700 hover:border-[#60A5FA]/50 px-2 py-0.5 rounded transition-all"
@@ -230,6 +237,26 @@ export default function ResultadosPendientes({ partidos, onActualizar }) {
                   onUbicacion={setEditUbicacion}
                   onFecha={setEditFecha}
                 />
+
+                {/* Aplazado: en el cuadro público el partido sale en un bloque
+                    "Jornada X · Aplazada" ordenado por su fecha. */}
+                {p.fase === 'grupos' && (
+                  <label className="flex items-center gap-3 cursor-pointer select-none bg-[#0f172a] border border-slate-700 rounded-xl px-4 py-3 hover:border-[#60A5FA]/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={editAplazado}
+                      onChange={(e) => setEditAplazado(e.target.checked)}
+                      className="w-4 h-4 accent-[#60A5FA]"
+                    />
+                    <span className="text-xs font-black uppercase tracking-widest text-slate-300">
+                      Partido aplazado
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-bold normal-case tracking-normal">
+                      — saldrá como "Jornada {p.jornada ?? 'X'} · Aplazada" en el cuadro
+                    </span>
+                  </label>
+                )}
+
                 <div className="flex gap-3 pt-1">
                   <button onClick={() => setEditando(null)} className="flex items-center gap-1.5 text-slate-400 hover:text-white bg-slate-800 border border-slate-700 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all">
                     <X size={13} /> Cancelar

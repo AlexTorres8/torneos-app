@@ -8,6 +8,7 @@ import Footer         from './components/layout/Footer';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
 const Home            = lazy(() => import('./pages/Home'));
+const CalendarioPartidos = lazy(() => import('./pages/CalendarioPartidos'));
 const SobreNosotros   = lazy(() => import('./pages/SobreNosotros'));
 const LigasFutsal     = lazy(() => import('./pages/futsal/LigasFutsal'));
 const CuadroFutsal    = lazy(() => import('./pages/futsal/CuadroFutsal'));
@@ -31,6 +32,7 @@ export default function App() {
               <Routes>
                 <Route path="/"                        element={<Home />} />
                 <Route path="/nosotros"                element={<SobreNosotros />} />
+                <Route path="/calendario"              element={<CalendarioPartidos />} />
                 <Route path="/futsal"                  element={<LigasFutsal />} />
                 <Route path="/torneo-futsal/:torneoId" element={<CuadroFutsal />} />
                 <Route path="/torneo-24h/:torneoId"    element={<CuadroFutsal24H />} />

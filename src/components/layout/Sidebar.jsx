@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
-import { Dumbbell, Users } from 'lucide-react';
+import { Dumbbell, Users, CalendarDays } from 'lucide-react';
 import { IconoFutsal, IconoPadel } from '../ui/Iconos';
 
 const LINKS = [
   { to: '/', label: 'Gimnasio', Icon: Dumbbell },
   { to: '/futsal', label: 'Futsal', Icon: IconoFutsal },
   { to: '/padel', label: 'Pádel', Icon: IconoPadel },
+  { to: '/calendario', label: 'Calendario', Icon: CalendarDays },
   { to: '/nosotros', label: 'Sobre Nosotros', Icon: Users },
 ];
 

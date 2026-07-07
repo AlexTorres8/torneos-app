@@ -64,7 +64,7 @@ export default function PanelAdmin() {
     const [{ data: p }, { data: t }] = await Promise.all([
       supabase
         .from('partidos')
-        .select('id, ubicacion, fase, jornada, hora, fecha, torneo:torneos(nombre, deporte), local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre), torneo_id')
+        .select('id, ubicacion, fase, jornada, hora, fecha, aplazado, torneo:torneos(nombre, deporte), local:participantes!local_id(nombre), visitante:participantes!visitante_id(nombre), torneo_id')
         .eq('estado', 'pendiente')
         .order('torneo_id'),
       supabase

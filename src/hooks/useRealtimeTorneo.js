@@ -39,7 +39,7 @@ export function useRealtimeTorneo(torneoId) {
       supabase
         .from('partidos')
         .select([
-          'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora', 'fecha',
+          'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora', 'fecha', 'aplazado',
           'local_id', 'visitante_id',
           'puntuacion_local', 'puntuacion_visitante', 'detalle_resultado',
           'local:participantes!local_id(nombre)',
@@ -95,7 +95,7 @@ export function useRealtimeTorneo(torneoId) {
             const { data } = await supabase
               .from('partidos')
               .select([
-                'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora', 'fecha',
+                'id', 'estado', 'ubicacion', 'fase', 'jornada', 'hora', 'fecha', 'aplazado',
                 'local_id', 'visitante_id',
                 'puntuacion_local', 'puntuacion_visitante', 'detalle_resultado',
                 'local:participantes!local_id(nombre)',

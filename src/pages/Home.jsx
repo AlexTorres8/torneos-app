@@ -36,9 +36,9 @@ export default function Home() {
         <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 to-transparent" />
         <div className="relative z-10 flex flex-col md:flex-row gap-4 md:gap-8 w-full px-6 justify-center">
           {[
-            { to: '/futsal',   label: 'Torneo Futsal'   },
-            { to: '/nosotros', label: 'Sobre Nosotros'  },
-            { to: '/padel',    label: 'Torneo Pádel'    },
+            { to: '/futsal',     label: 'Torneo Futsal' },
+            { to: '/calendario', label: 'Calendario'    },
+            { to: '/padel',      label: 'Torneo Pádel'  },
           ].map(({ to, label }) => (
             <Link
               key={to}
