@@ -12,11 +12,11 @@ export default function NormativaFutsal() {
 
       <Seccion titulo="NORMATIVA">
         <ol className="list-decimal pl-5 space-y-3 marker:text-[#60A5FA] marker:font-black">
-          <li>Cada equipo tendrá que entregar una hoja con la relación de jugadores que vayan a disputar el torneo, y en caso de que la organización lo estime necesario podrá ser requerido a cualquier jugador que presente su documentación. A lo largo del torneo se podrán inscribir jugadores hasta llegar al límite de <span className="text-[#60A5FA] font-bold">12 jugadores</span>. Como máximo podrás inscribir jugadores hasta el último día de fase de grupos (éste inclusive).</li>
+          <li>Cada equipo tendrá que entregar una hoja con la relación de jugadores que vayan a disputar el torneo, y en caso de que la organización lo estime necesario podrá ser requerido a cualquier jugador que presente su documentación. A lo largo del torneo se podrán inscribir jugadores hasta llegar al límite de <span className="text-[#60A5FA] font-bold">10 jugadores</span>. Como máximo podrás inscribir jugadores hasta el último día de fase de grupos (éste inclusive).</li>
           <li>El jugador que no se haya presentado al partido personalmente antes del comienzo de la segunda parte, no podrá participar en dicho partido.</li>
           <li>Los equipos irán provistos de equipamiento con su correspondiente dorsal y debe estar visible durante todos los partidos. En su defecto se utilizarán petos de la organización y deberán marcarse de alguna manera el número para que el colegiado pueda tenerlo claro.</li>
           <li>Por coincidencia de colores en la vestimenta se utilizarán los petos de la organización y se sorteará el uso de éstos.</li>
-          <li>No se permitirá la sustitución de ningún jugador. El límite de jugadores inscritos es de 12 jugadores. Los jugadores no podrán jugar en ningún otro equipo ni estar inscritos en más de un equipo dentro de la misma categoría.</li>
+          <li>No se permitirá la sustitución de ningún jugador. El límite de jugadores inscritos es de 10 jugadores. Los jugadores no podrán jugar en ningún otro equipo ni estar inscritos en más de un equipo dentro de la misma categoría.</li>
           <li>Cada equipo dispondrá de <span className="text-amber-500 font-bold">quince minutos (15')</span> de cortesía a partir de la hora de inicio del partido. Si en este plazo de tiempo no se presenta, se le sancionará con la descalificación del partido (en caso de no haber avisado previamente) y se les dará el partido por perdido <span className="text-red-400 font-bold">3-0</span>. Los goles no serán asignados a ningún jugador. En caso de no contar con el mínimo de jugadores permitido dentro del tiempo de cortesía, se les dará un aviso al equipo (<span className="font-bold text-white">WARNING</span>), y si vuelve a ocurrir están expulsados del torneo automáticamente. El sistema de puntuación tras éste caso sería de 3 puntos para el equipo que gana y <span className="text-red-400 font-bold">-3</span> para el equipo que no se presenta.</li>
           <li>En los banquillos de cada equipo y dentro de la pista no podrá permanecer más personal que jugadores, un delegado de equipo (el mismo durante todo el torneo), árbitros y organización.</li>
           <li>Cuando un jugador y un entrenador o dirigente de un equipo fueran expulsados, no podrán permanecer en el banquillo ni dentro de la cancha, después de la expulsión ni durante la duración del partido en que son expulsados, ni en sus partidos de sanción.</li>
@@ -28,7 +28,6 @@ export default function NormativaFutsal() {
               <li>Resultado entre ambos equipos</li>
               <li>Diferencia de goles particular (GF-GC)</li>
               <li>Mayor número de goles a favor</li>
-              <li>Menor cantidad de tarjetas amarillas y rojas (<span className="text-amber-500 font-bold">A=1 pto</span>; <span className="text-red-400 font-bold">R=2 ptos</span>)</li>
               <li>Moneda al aire.</li>
             </ol>
             <p className="mt-2 flex gap-2"><span className="text-[#60A5FA] font-bold">●</span> En el caso de triple empate o más se tendrá en cuenta el mismo patrón, en el mismo orden quitando el punto 1.</p>
@@ -39,11 +38,9 @@ export default function NormativaFutsal() {
           <li>
             La acumulación de tarjetas será la siguiente:
             <ul className="list-disc pl-6 mt-2 space-y-1">
-              <li><span className="text-amber-500 font-bold">3 amarillas</span> = 1 partido de sanción</li>
-              <li>Tarjeta <span className="text-red-400 font-bold">roja tras doble amarilla</span> = expulsión del partido pero puedes jugar el partido siguiente. En el registro de tarjetas se contabilizarán 2 tarjetas amarillas.</li>
+              <li>Tarjeta <span className="text-red-400 font-bold">roja tras doble amarilla</span> = expulsión del partido pero puedes jugar el partido siguiente.</li>
               <li><span className="text-red-400 font-bold">Tarjeta roja directa</span>: 2 partidos de sanción mínimo. (Excepto en el caso indicado en apartado de normas).</li>
             </ul>
-            <p className="mt-2">La acumulación de tarjetas se mantendrá hasta cuartos de final. Los equipos que pasen a semifinales con tarjetas pasarán limpios.</p>
           </li>
           <li>La organización no se hace responsable de posibles lesiones en las instalaciones durante el desarrollo del torneo.</li>
           <li>La organización se reserva el derecho de decidir in situ sobre cualquier situación o consecuencia de la misma.</li>
