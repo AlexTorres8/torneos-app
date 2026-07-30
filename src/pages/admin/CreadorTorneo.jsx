@@ -205,10 +205,55 @@ export default function CreadorTorneo({ onTorneoCreado }) {
     const mezclados      = shuffle(equipos);
     const grupos         = repartirEnGrupos(mezclados, tamGrupo);
     const jornadasPorGrupo = grupos.map((g) => generarCalendarioJornadas(g));
-    const calendario     = asignarHorario(
-      jornadasPorGrupo, deporte, partidosJornada,
-      franjasPara(deporte, deporte === 'padel' ? categoria : null, partidosJornada)
-    );
+    
+    // --- LÓGICA DE 24 HORAS CON CUADRO FIJO (A1 vs A2, etc.) ---
+    const es24h = nombre.toLowerCase().includes('24');
+    let calendario = [];
+
+    if (es24h) {
+      // 1. Horarios exactos basados en la imagen
+      const horas = ['20:00', '21:00', '22:00', '23:00', '00:00', '01:00', '02:00', '03:00', '04:00'];
+      
+      // 2. Extraer las pistas configuradas (Pista 1 y Pista 2 o Pabellón / Pista Ext.)
+      const sedes = SEDES_POR_DEPORTE[deporte] ?? SEDES_POR_DEPORTE.futsal;
+      const pista1 = sedes[0];
+      const pista2 = sedes.length > 1 ? sedes[1] : sedes[0];
+
+      // 3. Mapeo del cuadro de la imagen
+      // g = índice del grupo (0=A, 1=B, 2=C)
+      // p1, p2 = posiciones de los equipos (0=1º, 1=2º, 2=3º, 3=4º del grupo)
+      const estructuraCuadro = [
+        // ── JORNADA 1 ──
+        { g: 0, p1: [0, 1], p2: [2, 3] }, // 20:00 -> A1 vs A2 | A3 vs A4
+        { g: 1, p1: [0, 1], p2: [2, 3] }, // 21:00 -> B1 vs B2 | B3 vs B4
+        { g: 2, p1: [0, 1], p2: [2, 3] }, // 22:00 -> C1 vs C2 | C3 vs C4
+        // ── JORNADA 2 ──
+        { g: 0, p1: [0, 2], p2: [1, 3] }, // 23:00 -> A1 vs A3 | A2 vs A4
+        { g: 1, p1: [0, 2], p2: [1, 3] }, // 00:00 -> B1 vs B3 | B2 vs B4
+        { g: 2, p1: [0, 2], p2: [1, 3] }, // 01:00 -> C1 vs C3 | C2 vs C4
+        // ── JORNADA 3 ──
+        { g: 0, p1: [0, 3], p2: [1, 2] }, // 02:00 -> A1 vs A4 | A2 vs A3
+        { g: 1, p1: [0, 3], p2: [1, 2] }, // 03:00 -> B1 vs B4 | B2 vs B3
+        { g: 2, p1: [0, 3], p2: [1, 2] }, // 04:00 -> C1 vs C4 | C2 vs C3
+      ];
+
+      // 4. Asignar los cruces reemplazando A1, A2... por los equipos reales
+      estructuraCuadro.forEach((fila, i) => {
+        const grupo = grupos[fila.g];
+        const hora = horas[i];
+        const jornada = Math.floor(i / 3) + 1; // 1, 2 o 3
+
+        if (grupo && grupo.length >= 4) {
+          calendario.push({ local: grupo[fila.p1[0]], visitante: grupo[fila.p1[1]], jornada, hora, ubicacion: pista1, grupoIdx: fila.g });
+          calendario.push({ local: grupo[fila.p2[0]], visitante: grupo[fila.p2[1]], jornada, hora, ubicacion: pista2, grupoIdx: fila.g });
+        }
+      });
+      
+    } else {
+      // --- LÓGICA NORMAL (Ligas de verano, etc) ---
+      const franjasHorarias = franjasPara(deporte, deporte === 'padel' ? categoria : null, partidosJornada);
+      calendario = asignarHorario(jornadasPorGrupo, deporte, partidosJornada, franjasHorarias);
+    }
 
     setPreview({ grupos, jornadasPorGrupo, calendario });
     setFase('preview');
@@ -221,18 +266,22 @@ export default function CreadorTorneo({ onTorneoCreado }) {
     setError('');
 
     try {
-      // 1. Torneo
+      // Comprobamos si tiene el 24 en el nombre
+      const es24h = nombre.toLowerCase().includes('24');
+
+      // 1. Torneo (AQUÍ ESTÁ LA CLAVE PARA CAMBIAR EL FORMATO)
       const { data: torneo, error: e1 } = await supabase
         .from('torneos')
         .insert([{
           nombre: sanitizarNombre(nombre),
           deporte,
           estado,
-          formato: 'liga',
+          formato: es24h ? '24h' : 'liga', // <-- Si es 24, guarda formato 24h
           categoria: deporte === 'padel' ? categoria : null,
         }])
         .select()
         .single();
+        
       if (e1) throw new Error('Error creando torneo: ' + e1.message);
       const tId = torneo.id;
 
