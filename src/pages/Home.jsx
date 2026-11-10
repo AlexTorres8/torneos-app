@@ -63,7 +63,7 @@ export default function Home() {
               </h3>
               {[
                 { Icon: Clock, title: 'Lunes a viernes', desc: '8:00-14:00 | 15:30-22:00' },
-                { Icon: Clock, title: 'Sábados',          desc: '8:00 - 14:00'              },
+                { Icon: Clock, title: 'Sábados',          desc: '10:00 - 14:00'              },
                 { Icon: Phone, desc: '676 681 910'                                           },
                 { Icon: Mail,  desc: 'activafitnessagost@gmail.com'                          },
                 { Icon: MapPin,desc: 'Polideportivo Municipal, Agost'                        },
